@@ -7,7 +7,7 @@ public class PrimitiveStrategy : IBindingStrategy
 {
     public bool AppliesTo(Type type) => type.IsPrimitive || type == typeof(string);
 
-    public MemberBinding Bind(PropertyInfo property, Expression parameter, EntityField field, Func<Type, Expression, IEnumerable<EntityField>, MemberInitExpression> memberInit)
+    public MemberBinding Bind(PropertyInfo property, Expression parameter, TreeField field, Func<Type, Expression, IEnumerable<TreeField>, MemberInitExpression> memberInit)
     {
         var memberExpression = Expression.Property(parameter, property.Name);
 

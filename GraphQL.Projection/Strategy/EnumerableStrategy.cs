@@ -7,7 +7,7 @@ public sealed class EnumerableStrategy : IBindingStrategy
 {
     public bool AppliesTo(Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>);
 
-    public MemberBinding Bind(PropertyInfo property, Expression parameter, EntityField field, Func<Type, Expression, IEnumerable<EntityField>, MemberInitExpression> memberInit)
+    public MemberBinding Bind(PropertyInfo property, Expression parameter, TreeField field, Func<Type, Expression, IEnumerable<TreeField>, MemberInitExpression> memberInit)
     {
         var elementType = property.PropertyType
             .GetGenericArguments()
@@ -20,7 +20,7 @@ public sealed class EnumerableStrategy : IBindingStrategy
 
         var lambdaParameter = Expression.Parameter(elementType);
 
-        var lambdaBody = memberInit(elementType, lambdaParameter, field.SubFields);
+        var lambdaBody = memberInit(elementType, lambdaParameter, field.Children);
 
         var selectLambda = Expression.Lambda(lambdaBody, lambdaParameter);
 
