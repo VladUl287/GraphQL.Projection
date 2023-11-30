@@ -12,7 +12,7 @@ public sealed class ExpressionHelper
         this.bindingContext = bindingContext;
     }
 
-    public Expression<Func<TEntity, TEntity>> GetLambdaExpression<TEntity>(IEnumerable<EntityField> fields)
+    public Expression<Func<TEntity, TEntity>> GetLambdaExpression<TEntity>(IEnumerable<TreeField> fields)
     {
         var parameter = Expression.Parameter(typeof(TEntity));
 
@@ -21,7 +21,7 @@ public sealed class ExpressionHelper
         return Expression.Lambda<Func<TEntity, TEntity>>(result, parameter);
     }
 
-    private MemberInitExpression GetMemberInitExpression(Type type, Expression parameter, IEnumerable<EntityField> fields)
+    private MemberInitExpression GetMemberInitExpression(Type type, Expression parameter, IEnumerable<TreeField> fields)
     {
         var bindings = new List<MemberBinding>();
         
