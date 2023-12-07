@@ -12,12 +12,12 @@ public sealed class BindingContext : IBindingContext
         this.strategies = strategies;
     }
 
-    public MemberBinding Bind(PropertyInfo property, Expression parameter, TreeField field, Func<Type, Expression, IEnumerable<TreeField>, MemberInitExpression> memberInit)
+    public MemberBinding Bind(PropertyInfo property, Expression accessParameter, Expression bindParameter, Type type, IEnumerable<MemberBinding> bindings)
     {
         var strategy = strategies.FirstOrDefault(s => s.AppliesTo(property.PropertyType))
             ?? throw new NullReferenceException($"Binding startegy for {property.PropertyType} not registered.");
 
-        return strategy.Bind(property, parameter, field, memberInit);
+        return strategy.Bind(property, accessParameter, bindParameter, type, bindings);
     }
 }
 

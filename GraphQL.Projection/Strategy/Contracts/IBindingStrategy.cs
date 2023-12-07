@@ -7,5 +7,5 @@ public interface IBindingStrategy
 {
     bool AppliesTo(Type type);
 
-    MemberBinding Bind(PropertyInfo property, Expression parameter, TreeField field, Func<Type, Expression, IEnumerable<TreeField>, MemberInitExpression> memberInit);
+    MemberBinding Bind(PropertyInfo property, Expression accessParameter, Expression bindParameter, Type type, IEnumerable<MemberBinding> bindings);
 }

@@ -7,12 +7,10 @@ public sealed class EntityStrategy : IBindingStrategy
 {
     public bool AppliesTo(Type type) => type.IsClass && type != typeof(string);
 
-    public MemberBinding Bind(PropertyInfo property, Expression parameter, TreeField field, Func<Type, Expression, IEnumerable<TreeField>, MemberInitExpression> memberInit)
+    public MemberBinding Bind(PropertyInfo property, Expression accessParam, Expression bindParam, Type type, IEnumerable<MemberBinding> bindings)
     {
-        var memberExpression = Expression.Property(parameter, property.Name);
+        var memberInit = Expression.MemberInit(Expression.New(type), bindings);
 
-        var subFieldsInit = memberInit(property.PropertyType, memberExpression, field.Children);
-
-        return Expression.Bind(property, subFieldsInit);
+        return Expression.Bind(property, memberInit);
     }
 }
