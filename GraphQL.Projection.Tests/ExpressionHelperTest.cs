@@ -14,7 +14,7 @@ internal sealed class ExpressionHelperTest
     {
         var strategies = new IBindingStrategy[]
         {
-            new PrimitiveStrategy(),
+            new CollectionStrategy(),
             new EntityStrategy(),
             new EnumerableStrategy()
         };
@@ -30,12 +30,12 @@ internal sealed class ExpressionHelperTest
         var fields = new TreeField[] {
             new() {
                 Name = "id",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             },
             new()
             {
                 Name = "name",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             }
         };
 
@@ -53,7 +53,7 @@ internal sealed class ExpressionHelperTest
         var fields = new TreeField[] {
             new() {
                 Name = "id",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             },
             new()
             {
@@ -62,7 +62,7 @@ internal sealed class ExpressionHelperTest
                     new()
                     {
                         Name = "id",
-                        Children = Enumerable.Empty<TreeField>()
+                        Children = Array.Empty<TreeField>()
                     }
                 ]
             }
@@ -82,7 +82,7 @@ internal sealed class ExpressionHelperTest
         var fields = new TreeField[] {
             new() {
                 Name = "id",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             },
             new()
             {
@@ -91,7 +91,7 @@ internal sealed class ExpressionHelperTest
                     new()
                     {
                         Name = "id",
-                        Children = Enumerable.Empty<TreeField>()
+                        Children = Array.Empty<TreeField>()
                     }
                 ]
             },
@@ -102,7 +102,7 @@ internal sealed class ExpressionHelperTest
                     new()
                     {
                         Name = "index",
-                        Children = Enumerable.Empty<TreeField>()
+                        Children = Array.Empty<TreeField>()
                     }
                 ]
             }
@@ -130,7 +130,7 @@ internal sealed class ExpressionHelperTest
             new()
             {
                 Name = "title",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             },
             new()
             {
@@ -139,7 +139,7 @@ internal sealed class ExpressionHelperTest
                     new()
                     {
                         Name = "name",
-                        Children = Enumerable.Empty<TreeField>()
+                        Children = Array.Empty<TreeField>()
                     }
                 ]
             }
@@ -151,7 +151,7 @@ internal sealed class ExpressionHelperTest
         var expected =
             "Param_0 => new Book() {" +
                 "Title = Param_0.Title, " +
-                "Genres = Param_0.Genres.Select(Param_1 => new Genre() {Name = Param_1.Name})" +
+                "Genres = Param_0.Genres.Select(Param_1 => new Genre() {Name = Param_1.Name}).ToArray()" +
             "}";
 
         Assert.That(expected, Is.EqualTo(expression));

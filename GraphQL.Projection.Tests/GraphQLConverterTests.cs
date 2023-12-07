@@ -41,7 +41,7 @@ internal sealed class GraphQLConverterTests
         var expected = new TreeField[] {
             new() {
                 Name = "id",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             },
             new()
             {
@@ -50,7 +50,7 @@ internal sealed class GraphQLConverterTests
                     new()
                     {
                         Name = "name",
-                        Children = Enumerable.Empty<TreeField>()
+                        Children = Array.Empty<TreeField>()
                     }
                 ]
             }
@@ -81,7 +81,7 @@ internal sealed class GraphQLConverterTests
         var expected = new TreeField[] {
             new() {
                 Name = "id",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             },
             new()
             {
@@ -90,7 +90,7 @@ internal sealed class GraphQLConverterTests
                     new()
                     {
                         Name = "name",
-                        Children = Enumerable.Empty<TreeField>()
+                        Children = Array.Empty<TreeField>()
                     }
                 ]
             }
@@ -124,7 +124,7 @@ internal sealed class GraphQLConverterTests
         var expected = new TreeField[] {
             new() {
                 Name = "id",
-                Children = Enumerable.Empty<TreeField>()
+                Children = Array.Empty<TreeField>()
             }
         };
 
@@ -177,7 +177,7 @@ internal sealed class GraphQLConverterTests
                     new TreeField
                     {
                         Name = "name",
-                        Children = Enumerable.Empty<TreeField>()
+                        Children = Array.Empty<TreeField>()
                     }
                 ]
             }
