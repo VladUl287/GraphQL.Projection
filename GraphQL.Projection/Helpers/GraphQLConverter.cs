@@ -16,7 +16,7 @@ public static class GraphQLConverter
             {
                 var fields = ProcessOperation<TEntity>(operation, path);
 
-                if (fields is { Length: > 0 })
+                if (fields is not null)
                 {
                     return fields;
                 }
@@ -26,7 +26,7 @@ public static class GraphQLConverter
         return Enumerable.Empty<TreeField>();
     }
 
-    private static TreeField[] ProcessOperation<TEntity>(GraphQLOperationDefinition operation, IReadOnlyList<string> path)
+    private static IEnumerable<TreeField>? ProcessOperation<TEntity>(GraphQLOperationDefinition operation, IReadOnlyList<string> path)
     {
         ArgumentNullException.ThrowIfNull(operation);
 
@@ -34,11 +34,10 @@ public static class GraphQLConverter
 
         if (selectionSet is null)
         {
-            return [];
+            return null;
         }
 
-        return CreateTree(selectionSet, typeof(TEntity))
-            .ToArray();
+        return CreateTree(selectionSet, typeof(TEntity));
     }
 
     private static GraphQLSelectionSet? FindSelectionSet(this GraphQLSelectionSet selectionSet, Queue<string> path)
@@ -54,7 +53,9 @@ public static class GraphQLConverter
             {
                 if (selection is { Kind: ASTNodeKind.Field } and GraphQLField field)
                 {
-                    if (field.Name.StringValue.Equals(pathStep, StringComparison.OrdinalIgnoreCase))
+                    var fieldName = field.Name.StringValue;
+
+                    if (fieldName.Equals(pathStep, StringComparison.OrdinalIgnoreCase))
                     {
                         var result = field.SelectionSet?.FindSelectionSet(path);
 
@@ -77,8 +78,7 @@ public static class GraphQLConverter
             return Enumerable.Empty<TreeField>();
         }
 
-        var fields = new List<TreeField>();
-        var hash = new HashSet<string>();
+        var fields = new Dictionary<string, TreeField>();
 
         foreach (var selection in selectionSet.Selections)
         {
@@ -86,7 +86,7 @@ public static class GraphQLConverter
             {
                 var fieldName = field.Name.StringValue;
 
-                if (hash.Contains(fieldName))
+                if (fields.ContainsKey(fieldName))
                 {
                     continue;
                 }
@@ -95,13 +95,12 @@ public static class GraphQLConverter
                 {
                     var treeField = field.MapField(property!.PropertyType);
 
-                    fields.Add(treeField);
-                    hash.Add(fieldName);
+                    fields.Add(treeField.Name, treeField);
                 }
             }
         }
 
-        return fields;
+        return fields.Values;
     }
 
     private static bool TryGetProperty(this Type entityType, string fieldName, out PropertyInfo? propertyInfo)
@@ -131,24 +130,7 @@ public static class GraphQLConverter
         return new TreeField
         {
             Name = name,
-            Children = chilren
+            Children = chilren.ToArray()
         };
-    }
-
-    private static PropertyInfo? CheckIfNullOrGeneric(Type entityType, string fieldName, PropertyInfo? property)
-    {
-        if (property is null && entityType.IsGenericType)
-        {
-            var elementType = entityType
-                .GetGenericArguments()
-                .FirstOrDefault();
-
-            if (elementType is not null)
-            {
-                property = elementType.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
-            }
-        }
-
-        return property;
     }
 }
