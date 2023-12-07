@@ -1,5 +1,5 @@
 using GraphQL.Projection.Helpers;
-using GraphQL.Projection.Tests.Helpers;
+using GraphQL.Projection.Tests.Helper;
 using GraphQL.Projection.Tests.Types;
 
 namespace GraphQL.Projection.Tests;

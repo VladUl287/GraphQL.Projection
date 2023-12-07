@@ -1,4 +1,4 @@
-﻿namespace GraphQL.Projection.Tests.Helpers;
+﻿namespace GraphQL.Projection.Tests.Helper;
 
 public static class EntityHelpers
 {
