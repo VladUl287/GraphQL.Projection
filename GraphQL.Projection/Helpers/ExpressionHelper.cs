@@ -1,6 +1,6 @@
 ﻿using System.Reflection;
-using System.Collections;
 using System.Linq.Expressions;
+using GraphQL.Projection.Extensions;
 
 namespace GraphQL.Projection.Strategy.Helper;
 
@@ -17,70 +17,22 @@ public sealed class ExpressionHelper
     {
         var parameter = Expression.Parameter(typeof(TEntity));
 
-        var result = GetMemberInitExpression(typeof(TEntity), parameter, fields);
+        var initExpression = GetMemberInitExpression(typeof(TEntity), parameter, fields);
 
-        return Expression.Lambda<Func<TEntity, TEntity>>(result, parameter);
+        return Expression.Lambda<Func<TEntity, TEntity>>(initExpression, parameter);
     }
 
     private MemberInitExpression GetMemberInitExpression(Type type, Expression parameter, TreeField[] fields)
     {
         var stack = new Stack<MemberInitInfo>();
         
-        stack.Push(new(type, parameter, fields, [], 0));
+        stack.Push(new(type, parameter, fields, []));
 
         while (stack.Count > 0)
         {
-            var skipInitialization = false;
             var info = stack.Peek();
 
-            for (var i = info.Index; i < info.Fields.Length; i++)
-            {
-                var field = info.Fields[i];
-
-                var property = info.Type.GetProperty(field.Name, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
-
-                if (property is null)
-                {
-                    continue;
-                }
-
-                var propertyType = property.PropertyType;
-
-                if (propertyType.IsPrimitive || propertyType.IsEnum || propertyType == typeof(string) || propertyType == typeof(Guid))
-                {
-                    var propertyParameter = Expression.Property(info.Parameter, property.Name);
-
-                    var bind = Expression.Bind(property, propertyParameter);
-
-                    info.Binds.Add(bind);
-                }
-                else if (propertyType.IsClass && propertyType.GetInterface(nameof(IEnumerable)) is null)
-                {
-                    var propertyParameter = Expression.Property(info.Parameter, property.Name);
-
-                    stack.Push(new(propertyType, propertyParameter, field.Children, [], 0, property));
-
-                    info.SetIndex(i + 1);
-
-                    skipInitialization = true;
-
-                    break;
-                }
-                else if (propertyType.IsGenericType)
-                {
-                    var elementType = propertyType.GenericTypeArguments[0];
-
-                    var propertyParameter = Expression.Parameter(elementType);
-
-                    stack.Push(new(elementType, propertyParameter, field.Children, [], 0, property));
-
-                    info.SetIndex(i + 1);
-
-                    skipInitialization = true;
-
-                    break;
-                }
-            }
+            var skipInitialization = AddBinds(stack, info, false);
 
             if (skipInitialization)
             {
@@ -92,15 +44,7 @@ public sealed class ExpressionHelper
                 break;
             }
 
-            var current = stack.Pop();
-            var previous = stack.Peek();
-
-            if (current.Property is not null)
-            {
-                var bind = bindingContext.Bind(current.Property, previous.Parameter, current.Parameter, current.Type, current.Binds);
-
-                previous.Binds.Add(bind);
-            }
+            AddBubbleBind(stack);
         }
 
         var result = stack.Pop();
@@ -108,40 +52,91 @@ public sealed class ExpressionHelper
         return Expression.MemberInit(Expression.New(result.Type), result.Binds);
     }
 
-    private sealed class MemberInitInfo
+    private static bool AddBinds(Stack<MemberInitInfo> stack, MemberInitInfo info, bool skipInitialization)
     {
-        public MemberInitInfo(Type type, Expression parameter, TreeField[] fields, List<MemberBinding> binds, int index, PropertyInfo? property = null)
+        for (var i = info.Index; i < info.Fields.Length; i++)
         {
-            Type = type ?? throw new ArgumentNullException();
-            Binds = binds ?? throw new ArgumentNullException();
-            Fields = fields ?? throw new ArgumentNullException();
-            Parameter = parameter ?? throw new ArgumentNullException();
+            var field = info.Fields[i];
 
-            Property = property;
+            var property = info.Type.GetProperty(field.Name, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
 
-            SetIndex(index);
-        }
-
-        public Type Type { get; }
-
-        public Expression Parameter { get; }
-
-        public TreeField[] Fields { get; }
-
-        public List<MemberBinding> Binds { get; }
-
-        public PropertyInfo? Property { get; }
-
-        public int Index { get; private set; }
-
-        public void SetIndex(int index)
-        {
-            if (index < 0 || index > Fields?.Length)
+            if (property is null)
             {
-                throw new ArgumentException("Not correct index value");
+                continue;
             }
 
-            Index = index;
+            var propType = property.PropertyType;
+
+            if (propType.IsPrimitive())
+            {
+                var bind = GetPrimitiveBind(info, property);
+
+                info.Binds.Add(bind);
+
+                continue;
+            }
+
+            var typeParameter = GetTypeParameter(info, property, propType);
+
+            if (typeParameter is not null)
+            {
+                stack.Push(new(typeParameter.Value.Type, typeParameter.Value.Parameter, field.Children, [], 0, property));
+
+                info.SetIndex(i + 1);
+
+                skipInitialization = true;
+
+                break;
+            }
+        }
+
+        return skipInitialization;
+    }
+
+    private static MemberAssignment GetPrimitiveBind(MemberInitInfo initInfo, PropertyInfo property)
+    {
+        var primitiveParameter = Expression.Property(initInfo.Parameter, property.Name);
+
+        return Expression.Bind(property, primitiveParameter);
+    }
+
+    private static (Type Type, Expression Parameter)? GetTypeParameter(MemberInitInfo info, PropertyInfo property, Type propType)
+    {
+        return propType switch
+        {
+            { IsGenericType: true } => GetGenericParameter(propType),
+            { IsClass: true } => GetClassParameter(info, property, propType),
+            _ => null
+        };
+    }
+
+    private static (Type propType, MemberExpression) GetClassParameter(MemberInitInfo info, PropertyInfo property, Type propType)
+    {
+        return (propType, Expression.Property(info.Parameter, property.Name));
+    }
+
+    private static (Type, ParameterExpression) GetGenericParameter(Type propType)
+    {
+        var type = propType.GenericTypeArguments[0];
+
+        return (type, Expression.Parameter(type));
+    }
+
+    private void AddBubbleBind(Stack<MemberInitInfo> stack)
+    {
+        if (stack.Count <= 1)
+        {
+            return;
+        }
+
+        var current = stack.Pop();
+        var previous = stack.Peek();
+
+        if (current.Property is not null)
+        {
+            var bind = bindingContext.Bind(current.Property, previous.Parameter, current.Parameter, current.Type, current.Binds);
+
+            previous.Binds.Add(bind);
         }
     }
 }
