@@ -33,8 +33,6 @@ public sealed class CollectionStrategy : IBindingStrategy
 
         call = Expression.Call(toArray, call);
 
-        var bind = Expression.Bind(property, call);
-
-        return bind;
+        return Expression.Bind(property, call);
     }
 }

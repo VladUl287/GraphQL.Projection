@@ -26,8 +26,35 @@ public sealed class EnumerableStrategy : IBindingStrategy
 
         var call = Expression.Call(selectMethod, memberAccess, selectLambda);
 
-        var bind = Expression.Bind(property, call);
-
-        return bind;
+        return Expression.Bind(property, call);
     }
+
+    //private static readonly Type FuncType;
+    //private static readonly Type EnumerableType;
+
+    //static EnumerableStrategy()
+    //{
+    //    EnumerableType = typeof(IEnumerable<>).MakeGenericType([Type.MakeGenericMethodParameter(0)]);
+    //    FuncType = typeof(Func<,>).MakeGenericType([Type.MakeGenericMethodParameter(0), Type.MakeGenericMethodParameter(1)]);
+    //}
+
+    //public bool AppliesTo(Type type) => type.IsGenericType && type.GetGenericTypeDefinition() == typeof(IEnumerable<>);
+
+    //public MemberBinding Bind(PropertyInfo property, Expression accessParameter, Expression bindParameter, Type type, IEnumerable<MemberBinding> bindings)
+    //{
+    //    var elementType = property.PropertyType.GenericTypeArguments[0];
+
+    //    var selectMethodDefinition = typeof(Enumerable).GetMethod(nameof(Enumerable.Select), [EnumerableType, FuncType]);
+    //    var selectMethod = selectMethodDefinition.MakeGenericMethod([elementType, elementType]);
+
+    //    var lambdaBody = Expression.MemberInit(Expression.New(type), bindings);
+
+    //    var selectLambda = Expression.Lambda(lambdaBody, (ParameterExpression)bindParameter);
+
+    //    var memberAccess = Expression.Property(accessParameter, property);
+
+    //    var call = Expression.Call(selectMethod, memberAccess, selectLambda);
+
+    //    return Expression.Bind(property, call);
+    //}
 }
