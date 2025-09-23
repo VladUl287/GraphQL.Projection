@@ -1,13 +1,10 @@
 ﻿using GraphQL.AspNet.Attributes;
 using GraphQL.AspNet.Controllers;
 using GraphQL.Projection.Helpers;
-using GraphQL.Projection.Strategy.Helper;
 using GraphQLApi.Database;
 using GraphQLApi.Models;
 using GraphQLParser;
-using GraphQLParser.AST;
 using Microsoft.EntityFrameworkCore;
-using System.IO;
 
 namespace GraphQLApi.Controllers;
 
@@ -22,7 +19,13 @@ public class BakeryController : GraphController
         this.expressionBuilder = expressionBuilder;
     }
 
-    [QueryRoot]
+    [QueryRoot("search")]
+    public IQueryable<User> Search(string text)
+    {
+        return dbContext.Users.AsQueryable();
+    }
+
+    [QueryRoot("searchPastries")]
     public async Task<IEnumerable<User>> SearchPastries(string text)
     {
         var query = Context.QueryRequest.QueryText;

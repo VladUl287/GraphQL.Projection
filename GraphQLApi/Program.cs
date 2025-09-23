@@ -1,14 +1,16 @@
 using GraphQL;
 using GraphQL.AspNet.Configuration;
+using GraphQL.Projection.Asp.Middlewares;
 using GraphQL.Projection.Extensions;
 using GraphQL.Server.Ui.Playground;
 using GraphQLApi.Database;
 
 var builder = WebApplication.CreateBuilder(args);
 {
+    builder.Services.AddLogging();
+
     builder.Services.AddDbContext<DBContext>(ServiceLifetime.Transient);
 
-    builder.Services.AddGraphQL();
     builder.Services.AddGraphQlProjection();
 }
 
