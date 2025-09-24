@@ -1,5 +1,9 @@
-﻿namespace GraphQL.Projection.Abstractions.Translation;
+﻿using System.Linq.Expressions;
 
-public interface ISortVisitor
+namespace GraphQL.Projection.Abstractions.Translation;
+
+public interface ISortVisitor<TEntity> where TEntity : class
 {
+    IEnumerable<(LambdaExpression KeySelector, bool Descending)> Results { get; }
 }
+
