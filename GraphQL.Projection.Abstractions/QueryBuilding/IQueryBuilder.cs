@@ -1,5 +1,8 @@
-﻿namespace GraphQL.Projection.Abstractions.QueryBuilding;
+﻿using GraphQLParser.AST;
 
-public interface IQueryBuilder
+namespace GraphQL.Projection.Abstractions.QueryBuilding;
+
+public interface IQueryBuilder<TEntity>
 {
+    IQueryable<TEntity> Build(IQueryable<TEntity> source, ASTNode node);
 }
