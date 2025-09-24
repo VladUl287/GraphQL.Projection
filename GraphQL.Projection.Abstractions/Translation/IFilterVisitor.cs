@@ -1,5 +1,8 @@
-﻿namespace GraphQL.Projection.Abstractions.Translation;
+﻿using System.Linq.Expressions;
 
-public interface IFilterVisitor
+namespace GraphQL.Projection.Abstractions.Translation;
+
+public interface IFilterVisitor<TEntity> where TEntity : class
 {
+    Expression<Func<TEntity, bool>>? Result { get; }
 }
