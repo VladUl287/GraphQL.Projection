@@ -1,6 +1,8 @@
 ﻿using GraphQL.AspNet.Attributes;
 using GraphQL.AspNet.Controllers;
+using GraphQL.Projection;
 using GraphQL.Projection.Helpers;
+using GraphQL.Projection.Pipeline;
 using GraphQLApi.Database;
 using GraphQLApi.Models;
 using GraphQLParser;
@@ -20,9 +22,17 @@ public class BakeryController : GraphController
     }
 
     [QueryRoot("search")]
-    public IQueryable<User> Search(string text)
+    public IEnumerable<User> Search(string text)
     {
-        return dbContext.Users.AsQueryable();
+        var query = dbContext.Users.AsQueryable();
+
+        var pipeline = PipelineComposition.CreatePipeline<User>();
+
+        var document = Parser.Parse(Context.QueryRequest.QueryText);
+
+        query = query.Translate(document, pipeline);
+
+        return query.ToArray();
     }
 
     [QueryRoot("searchPastries")]
