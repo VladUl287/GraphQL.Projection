@@ -2,6 +2,7 @@
 using GraphQL.AspNet.Controllers;
 using GraphQL.Projection;
 using GraphQL.Projection.Helpers;
+using GraphQL.Projection.Models;
 using GraphQL.Projection.Pipeline;
 using GraphQLApi.Database;
 using GraphQLApi.Models;
@@ -30,7 +31,8 @@ public class BakeryController : GraphController
 
         var document = Parser.Parse(Context.QueryRequest.QueryText);
 
-        query = query.Translate(document, pipeline);
+        //query = query.Translate(document, pipeline);
+        query = query.AssignQuery(document);
 
         return query.ToArray();
     }

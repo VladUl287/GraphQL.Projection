@@ -3,7 +3,7 @@ using GraphQL.Projection.Models;
 using GraphQL.Projection.Resolvers;
 using GraphQL.Projection.Strategy.Binding;
 using GraphQLParser.AST;
-using System.IO;
+using System.Linq.Expressions;
 
 namespace GraphQL.Projection.Pipeline;
 
@@ -13,6 +13,7 @@ public static class SelectFeatureModule
     {
         return (document, model) =>
         {
+            var parameterResolver = new ParameterResolver();
             var bindingContext = new BindingContext([new EntityStrategy(new Visitor.ParameterReplacerFabric()), new EnumerableStrategy(new ParameterResolver())]);
             var typeResolver = new TypeResolver();
             var fieldBinder = new FieldBuilder(new Fabrics.TypeBuilderFactory(typeResolver, bindingContext), typeResolver, bindingContext);
@@ -37,7 +38,8 @@ public static class SelectFeatureModule
 
             ArgumentNullException.ThrowIfNull(qLSelectionSet);
 
-            var expression = builder.BuildExpression<TEntity>(qLSelectionSet);
+            var expression = ExpressionBuilder.BuildExpression<TEntity>(qLSelectionSet, (node) => typeBuilder.BuildType(typeof(TEntity), node), 
+                (expression) => parameterResolver.GetParameterExpression(expression as MemberInitExpression));
 
             return model with
             {
