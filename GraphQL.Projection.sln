@@ -7,8 +7,6 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.Projection", "graph
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQLApi", "GraphQLApi\GraphQLApi.csproj", "{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQL.Projection.Asp", "GraphQL.Projection.Asp\GraphQL.Projection.Asp.csproj", "{2B399091-6A0F-4F00-8D71-898CBE5E9B3B}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -23,10 +21,6 @@ Global
 		{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2B399091-6A0F-4F00-8D71-898CBE5E9B3B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2B399091-6A0F-4F00-8D71-898CBE5E9B3B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2B399091-6A0F-4F00-8D71-898CBE5E9B3B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2B399091-6A0F-4F00-8D71-898CBE5E9B3B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

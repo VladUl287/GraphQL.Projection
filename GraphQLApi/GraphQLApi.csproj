@@ -26,7 +26,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\GraphQL.Projection.Asp\GraphQL.Projection.Asp.csproj" />
     <ProjectReference Include="..\graphql.projection\GraphQL.Projection.csproj" />
   </ItemGroup>
 
