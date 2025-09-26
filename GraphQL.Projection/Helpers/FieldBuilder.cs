@@ -5,7 +5,6 @@ using GraphQL.Projection.Strategy.Binding.Contracts;
 using GraphQLParser.AST;
 using System.Linq.Expressions;
 using System.Reflection;
-using System.Runtime;
 
 namespace GraphQL.Projection.Helpers;
 
