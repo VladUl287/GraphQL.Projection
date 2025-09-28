@@ -42,7 +42,9 @@ public static class SelectFeatureModule
 
             var parameter = Expression.Parameter(typeof(TEntity));
 
-            var result = Build<TEntity>(parameter, qLSelectionSet);
+            var assignements = BuildAssignements<TEntity>(parameter, qLSelectionSet);
+
+            var result = InitilizeMember<TEntity>(assignements);
 
             var expression = ExpressionBuilder.BuildExpression<TEntity>(qLSelectionSet, (node) => typeBuilder.BuildType(typeof(TEntity), node),
                 (expression) => parameterResolver.GetParameterExpression(expression as MemberInitExpression));
@@ -54,22 +56,25 @@ public static class SelectFeatureModule
         };
     }
 
-    private static MemberInitExpression Build<TEntity>(ParameterExpression parameter, GraphQLSelectionSet set)
+    private static MemberInitExpression InitilizeMember<TEntity>(IEnumerable<MemberAssignment> assignments)
+    {
+        return Expression.MemberInit(Expression.New(typeof(TEntity)), assignments);
+    }
+
+    private static List<MemberAssignment> BuildAssignements<TEntity>(ParameterExpression parameter, GraphQLSelectionSet set)
     {
         var bindings = new List<MemberAssignment>(set.Selections.Count);
 
         AssignMember<TEntity>(parameter, bindings, set, 0);
 
-        var memberInit = Expression.MemberInit(Expression.New(typeof(TEntity)), bindings);
-
-        return memberInit;
+        return bindings;
     }
 
     private static void AssignMember<TEntity>(ParameterExpression parameter, List<MemberAssignment> result, GraphQLSelectionSet set, int index)
     {
         if (index >= set.Selections.Count)
             return;
-        
+
         var member = set.Selections[index];
         if (member is GraphQLField field)
         {
@@ -96,7 +101,8 @@ public static class SelectFeatureModule
             return Expression.Bind(property, memberAccess);
         }
 
-        var memberInit = Build<TEntity>(parameter, field.SelectionSet);
+        var assignements = BuildAssignements<TEntity>(parameter, field.SelectionSet);
+        var memberInit = InitilizeMember<TEntity>(assignements);
         return Expression.Bind(property, memberInit);
     }
 }
