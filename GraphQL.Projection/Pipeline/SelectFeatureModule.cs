@@ -1,9 +1,11 @@
-﻿using GraphQL.Projection.Helpers;
+﻿using GraphQL.Projection.Extensions;
+using GraphQL.Projection.Helpers;
 using GraphQL.Projection.Models;
 using GraphQL.Projection.Resolvers;
 using GraphQL.Projection.Strategy.Binding;
 using GraphQLParser.AST;
 using System.Linq.Expressions;
+using System.Reflection;
 
 namespace GraphQL.Projection.Pipeline;
 
@@ -38,13 +40,63 @@ public static class SelectFeatureModule
 
             ArgumentNullException.ThrowIfNull(qLSelectionSet);
 
-            var expression = ExpressionBuilder.BuildExpression<TEntity>(qLSelectionSet, (node) => typeBuilder.BuildType(typeof(TEntity), node), 
+            var parameter = Expression.Parameter(typeof(TEntity));
+
+            var result = Build<TEntity>(parameter, qLSelectionSet);
+
+            var expression = ExpressionBuilder.BuildExpression<TEntity>(qLSelectionSet, (node) => typeBuilder.BuildType(typeof(TEntity), node),
                 (expression) => parameterResolver.GetParameterExpression(expression as MemberInitExpression));
 
             return model with
             {
-                Select = expression
+                Select = Expression.Lambda<Func<TEntity, TEntity>>(result, parameter)
             };
         };
+    }
+
+    private static MemberInitExpression Build<TEntity>(ParameterExpression parameter, GraphQLSelectionSet set)
+    {
+        var bindings = new List<MemberAssignment>();
+
+        AssignMember<TEntity>(parameter, bindings, set, 0);
+
+        var memberInit = Expression.MemberInit(Expression.New(typeof(TEntity)), bindings);
+
+        return memberInit;
+    }
+
+    private static void AssignMember<TEntity>(ParameterExpression parameter, List<MemberAssignment> result, GraphQLSelectionSet set, int index)
+    {
+        if (index >= set.Selections.Count)
+            return;
+        
+        var member = set.Selections[index];
+        if (member is GraphQLField field)
+        {
+            var assignement = Assign<TEntity>(parameter, field);
+            result.Add(assignement);
+            return;
+        }
+
+        AssignMember<TEntity>(parameter, result, set, index + 1);
+    }
+
+    private static MemberAssignment Assign<TEntity>(ParameterExpression parameter, GraphQLField field)
+    {
+        var fieldName = field.Name.StringValue;
+        var property = typeof(TEntity).GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+
+        ArgumentNullException.ThrowIfNull(property);
+
+        var propType = property.PropertyType;
+
+        if (propType.IsPrimitive())
+        {
+            var memberAccess = Expression.MakeMemberAccess(parameter, property);
+            return Expression.Bind(property, memberAccess);
+        }
+
+        var memberInit = Build<TEntity>(parameter, field.SelectionSet);
+        return Expression.Bind(property, memberInit);
     }
 }
