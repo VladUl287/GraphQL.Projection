@@ -56,7 +56,7 @@ public static class SelectFeatureModule
 
     private static MemberInitExpression Build<TEntity>(ParameterExpression parameter, GraphQLSelectionSet set)
     {
-        var bindings = new List<MemberAssignment>();
+        var bindings = new List<MemberAssignment>(set.Selections.Count);
 
         AssignMember<TEntity>(parameter, bindings, set, 0);
 
