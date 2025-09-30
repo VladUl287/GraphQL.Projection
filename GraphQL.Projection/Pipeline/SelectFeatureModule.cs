@@ -40,7 +40,13 @@ public static class SelectFeatureModule
             var test = Build<TEntity>(qlField).Run();
             var select = test.ThrowIfFail();
 
-            var unsafeTest = BuildSelectorUnsafe<TEntity>(qlField);
+            var parameter = Expression.Parameter(typeof(TEntity));
+
+            var assignements = BuildAssignements<TEntity>(parameter, qLSelectionSet);
+
+            var result = InitilizeMember<TEntity>(assignements);
+
+            var expression = Expression.Lambda<Func<TEntity, TEntity>>(result, parameter);
 
             return model with
             {
@@ -49,30 +55,54 @@ public static class SelectFeatureModule
         };
     }
 
-    public static Expression<Func<TEntity, TEntity>> BuildSelectorUnsafe<TEntity>(GraphQLField field)
+    private static MemberInitExpression InitilizeMember<TEntity>(IEnumerable<MemberAssignment> assignments)
     {
-        var parameter = Expression.Parameter(typeof(TEntity));
-        var bindings = field.SelectionSet.Selections.Select(selection =>
-        {
-            return CreateBindingUnsafe<TEntity>(parameter, selection as GraphQLField);
-        });
-
-        var newExpr = Expression.New(typeof(TEntity));
-        var memberInit = Expression.MemberInit(newExpr, bindings);
-        return Expression.Lambda<Func<TEntity, TEntity>>(memberInit, parameter);
+        return Expression.MemberInit(Expression.New(typeof(TEntity)), assignments);
     }
 
-    private static MemberBinding CreateBindingUnsafe<TEntity>(ParameterExpression parameter, GraphQLField selection)
+    private static List<MemberAssignment> BuildAssignements<TEntity>(ParameterExpression parameter, GraphQLSelectionSet set)
     {
-        var property = typeof(TEntity).GetProperty(selection.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)!; // We know it exists!
+        var bindings = new List<MemberAssignment>(set.Selections.Count);
 
-        if (selection?.SelectionSet?.Selections?.Any() is true)
+        AssignMember<TEntity>(parameter, bindings, set, 0);
+
+        return bindings;
+    }
+
+    private static void AssignMember<TEntity>(ParameterExpression parameter, List<MemberAssignment> result, GraphQLSelectionSet set, int index)
+    {
+        if (index >= set.Selections.Count)
+            return;
+
+        var member = set.Selections[index];
+        if (member is GraphQLField field)
         {
-            var nestedAccess = Expression.Property(parameter, property);
-            return Expression.Bind(property, nestedAccess);
+            var assignement = Assign<TEntity>(parameter, field);
+            result.Add(assignement);
+            return;
         }
 
-        return Expression.Bind(property, Expression.Property(parameter, property));
+        AssignMember<TEntity>(parameter, result, set, index + 1);
+    }
+
+    private static MemberAssignment Assign<TEntity>(ParameterExpression parameter, GraphQLField field)
+    {
+        var fieldName = field.Name.StringValue;
+        var property = typeof(TEntity).GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+
+        ArgumentNullException.ThrowIfNull(property);
+
+        var propType = property.PropertyType;
+
+        if (propType.IsPrimitive())
+        {
+            var memberAccess = Expression.MakeMemberAccess(parameter, property);
+            return Expression.Bind(property, memberAccess);
+        }
+
+        var assignements = BuildAssignements<TEntity>(parameter, field.SelectionSet);
+        var memberInit = InitilizeMember<TEntity>(assignements);
+        return Expression.Bind(property, memberInit);
     }
 
     public static Eff<Expression<Func<TEntity, TEntity>>> Build<TEntity>(GraphQLField field)
