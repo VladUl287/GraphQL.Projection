@@ -40,11 +40,39 @@ public static class SelectFeatureModule
             var test = Build<TEntity>(qlField).Run();
             var select = test.ThrowIfFail();
 
+            var unsafeTest = BuildSelectorUnsafe<TEntity>(qlField);
+
             return model with
             {
                 Select = select
             };
         };
+    }
+
+    public static Expression<Func<TEntity, TEntity>> BuildSelectorUnsafe<TEntity>(GraphQLField field)
+    {
+        var parameter = Expression.Parameter(typeof(TEntity));
+        var bindings = field.SelectionSet.Selections.Select(selection =>
+        {
+            return CreateBindingUnsafe<TEntity>(parameter, selection as GraphQLField);
+        });
+
+        var newExpr = Expression.New(typeof(TEntity));
+        var memberInit = Expression.MemberInit(newExpr, bindings);
+        return Expression.Lambda<Func<TEntity, TEntity>>(memberInit, parameter);
+    }
+
+    private static MemberBinding CreateBindingUnsafe<TEntity>(ParameterExpression parameter, GraphQLField selection)
+    {
+        var property = typeof(TEntity).GetProperty(selection.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)!; // We know it exists!
+
+        if (selection?.SelectionSet?.Selections?.Any() is true)
+        {
+            var nestedAccess = Expression.Property(parameter, property);
+            return Expression.Bind(property, nestedAccess);
+        }
+
+        return Expression.Bind(property, Expression.Property(parameter, property));
     }
 
     public static Eff<Expression<Func<TEntity, TEntity>>> Build<TEntity>(GraphQLField field)
@@ -57,7 +85,6 @@ public static class SelectFeatureModule
 
         return result;
     }
-
 
     private static Eff<Expression<Func<TEntity, TEntity>>> CreateLambda<TEntity>(MemberInitExpression memberInit)
     {
