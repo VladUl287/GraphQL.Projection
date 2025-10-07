@@ -1,6 +1,7 @@
 ﻿using GraphQL.Projection.Extensions;
 using GraphQL.Projection.Models;
 using GraphQLParser.AST;
+using System.Collections;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -68,6 +69,32 @@ public static class SelectFeatureModule
         }
 
         var subParameter = Expression.Property(parameter, property);
+
+        if (propType.IsEnumerable())
+        {
+            var subEntityType = propType.GenericTypeArguments.FirstOrDefault();
+            var childParameter = Expression.Parameter(subEntityType, "email");
+            var childAssignements = BuildAssignements(subEntityType, childParameter, field.SelectionSet);
+            var childMemberInit = MemberInit(subEntityType, childAssignements);
+
+            var selectMethod = typeof(Enumerable).GetMethods()
+                .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
+                .MakeGenericMethod(subEntityType, childMemberInit.Type);
+
+            var selectorLambda = Expression.Lambda(
+                childMemberInit,
+                childParameter
+            );
+
+            var selectCall = Expression.Call(
+                selectMethod,
+                Expression.PropertyOrField(parameter, property.Name), // source collection
+                selectorLambda // selector
+            );
+
+            return Expression.Bind(property, selectCall);
+        }
+
         var assignements = BuildAssignements(propType, subParameter, field.SelectionSet);
         var memberInit = MemberInit(propType, assignements);
         return Expression.Bind(property, memberInit);
