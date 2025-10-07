@@ -31,8 +31,7 @@ public class BakeryController : GraphController
 
         var document = Parser.Parse(Context.QueryRequest.QueryText);
 
-        //query = query.Translate(document, pipeline);
-        query = query.AssignQuery(document);
+        query = query.Translate(document, pipeline);
 
         return query.ToArray();
     }

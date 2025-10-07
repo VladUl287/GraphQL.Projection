@@ -1,5 +1,4 @@
 ﻿using GraphQL.Projection.Models;
-using GraphQLParser.AST;
 
 namespace GraphQL.Projection.Pipeline;
 
@@ -14,12 +13,5 @@ public static class PipelineComposition
     {
         var select = SelectFeatureModule.Create<TEntity>();
         return Compose(select);
-    }
-
-    public static QueryModel<TEntity> ExecPipeline<TEntity>(GraphQLDocument doc, QueryModel<TEntity> model, GraphQLFeatureModule<TEntity>[] modules, int index = 0)
-    {
-        if (index >= modules.Length) return model;
-        model = modules[index].Invoke(doc, model);
-        return ExecPipeline(doc, model, modules, index + 1);
     }
 }

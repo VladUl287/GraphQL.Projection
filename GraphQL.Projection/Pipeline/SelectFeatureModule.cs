@@ -1,10 +1,6 @@
 ﻿using GraphQL.Projection.Extensions;
 using GraphQL.Projection.Models;
-using GraphQL.Projection.Resolvers;
 using GraphQLParser.AST;
-using LanguageExt;
-using LanguageExt.Common;
-using LanguageExt.Pipes;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -14,37 +10,12 @@ public static class SelectFeatureModule
 {
     public static GraphQLFeatureModule<TEntity> Create<TEntity>()
     {
-        return (document, model) =>
+        return (selectionSet, model) =>
         {
-            GraphQLSelectionSet? qLSelectionSet = null;
-            GraphQLField? qlField = null;
-            foreach (var definition in document.Definitions)
-            {
-                if (definition is { Kind: ASTNodeKind.OperationDefinition } and GraphQLOperationDefinition operation)
-                {
-                    foreach (var selection in operation.SelectionSet.Selections)
-                    {
-                        if (selection is { Kind: ASTNodeKind.Field } and GraphQLField field)
-                        {
-                            qlField = field;
-                            qLSelectionSet = field.SelectionSet;
-                        }
-                    }
-                    break;
-                }
-            }
-
-            ArgumentNullException.ThrowIfNull(qlField);
-            ArgumentNullException.ThrowIfNull(qLSelectionSet);
-
             var parameter = Expression.Parameter(typeof(TEntity));
-
-            var assignements = BuildAssignements<TEntity>(parameter, qLSelectionSet);
-
-            var result = InitilizeMember<TEntity>(assignements);
-
+            var bindings = BuildAssignements<TEntity>(parameter, selectionSet);
+            var result = MemberInit<TEntity>(bindings);
             var expression = Expression.Lambda<Func<TEntity, TEntity>>(result, parameter);
-
             return model with
             {
                 Select = expression
@@ -52,7 +23,7 @@ public static class SelectFeatureModule
         };
     }
 
-    private static MemberInitExpression InitilizeMember<TEntity>(IEnumerable<MemberAssignment> assignments)
+    private static MemberInitExpression MemberInit<TEntity>(IEnumerable<MemberAssignment> assignments)
     {
         return Expression.MemberInit(Expression.New(typeof(TEntity)), assignments);
     }
@@ -98,7 +69,7 @@ public static class SelectFeatureModule
         }
 
         var assignements = BuildAssignements<TEntity>(parameter, field.SelectionSet);
-        var memberInit = InitilizeMember<TEntity>(assignements);
+        var memberInit = MemberInit<TEntity>(assignements);
         return Expression.Bind(property, memberInit);
     }
 }
