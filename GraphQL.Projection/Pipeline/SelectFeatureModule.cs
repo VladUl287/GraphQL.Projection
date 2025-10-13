@@ -1,6 +1,7 @@
 ﻿using GraphQL.Projection.Extensions;
 using GraphQL.Projection.Models;
 using GraphQLParser.AST;
+using LanguageExt.Common;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -8,217 +9,146 @@ namespace GraphQL.Projection.Pipeline;
 
 public static class SelectFeatureModule
 {
-    public delegate Expression PipelineStep(
-        GraphQLField field,
-        Expression parameter,
-        Type currentType,
-        PipelineContext context);
-
-    public sealed record PipelineContext(PipelineStep Next, PipelineStep Pipeline);
-
-    public static PipelineStep CreatePipeline(params PipelineStep[] processors)
+    public delegate Expression PipelineStep(GraphQLField field, Expression param, Type type, PipelineStep Next);
+    
+    public static PipelineStep Compose(params PipelineStep[] processors)
     {
-        return processors.Reverse().Aggregate((first, second) =>
+        var pipeline = processors.Aggregate(TerminalStep, (currentStep, nextStep) =>
         {
-            return (field, param, type, context) =>
-            {
-                return second(field, param, type, context with { Next = first });
-            };
+            return (field, param, type, context) => nextStep(field, param, type, currentStep);
         });
+        return pipeline;
     }
 
-    public readonly static PipelineStep PrimitiveProcessor = (field, parameter, type, context) =>
+    public static PipelineStep CreateDefault() => Compose(
+        CollectionStep, EntityStep, PrimitiveStep);
+
+    public static GraphQLFeatureModule<TEntity> Create<TEntity>(Func<PipelineStep>? pipelineFactory = null)
     {
-        var fieldName = field.Name.StringValue;
-        var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
-            throw new NullReferenceException();
-
-        if (property.PropertyType.IsPrimitive())
-            return Expression.MakeMemberAccess(parameter, property);
-
-        return context.Next(field, parameter, type, context);
-    };
-
-    public readonly static PipelineStep SubEntityProcessor = (field, parameter, type, context) =>
-    {
-        var fieldName = field.Name.StringValue;
-        var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
-            throw new NullReferenceException();
-
-        if (property.PropertyType.IsPrimitive() || property.PropertyType.IsEnumerable())
-            return context.Next(field, parameter, type, context);
-
-        var subEntityParam = Expression.MakeMemberAccess(parameter, property);
-
-        // Process the sub-entity selection set with a NEW context that starts from the BEGINNING
-        var nestedContext = new PipelineContext(context.Pipeline, context.Pipeline);
-        return ProcessSelectionSet(field.SelectionSet, subEntityParam, property.PropertyType, nestedContext);
-    };
-
-    public readonly static PipelineStep CollectionProcessor = (field, parameter, type, context) =>
-    {
-        var fieldName = field.Name.StringValue;
-        var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
-            throw new NullReferenceException();
-
-        var propType = property.PropertyType;
-        if (propType.IsEnumerable())
-        {
-            var subEntityType = propType.GenericTypeArguments.FirstOrDefault();
-            var childParameter = Expression.Parameter(subEntityType);
-
-            // Process collection elements with a NEW context
-            var nestedContext = new PipelineContext(context.Pipeline, context.Pipeline);
-            var childMemberInit = ProcessSelectionSet(field.SelectionSet, childParameter, subEntityType, nestedContext);
-
-            var selectMethod = typeof(Enumerable).GetMethods()
-                .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
-                .MakeGenericMethod(subEntityType, childMemberInit.Type);
-
-            var selectorLambda = Expression.Lambda(childMemberInit, childParameter);
-            var selectCall = Expression.Call(selectMethod, Expression.PropertyOrField(parameter, property.Name), selectorLambda);
-
-            return selectCall;
-        }
-
-        return context.Next(field, parameter, type, context);
-    };
-
-    public readonly static PipelineStep TerminalProcessor = (field, parameter, type, context) =>
-    {
-        return Expression.Empty();
-    };
-
-    public static PipelineStep CreateDefaultPipeline() => CreatePipeline(
-        PrimitiveProcessor,
-        SubEntityProcessor,
-        CollectionProcessor,
-        TerminalProcessor);
-
-    public static GraphQLFeatureModule<TEntity> Create<TEntity>()
-    {
+        var pipeline = pipelineFactory?.Invoke() ?? CreateDefault();
         var parameter = Expression.Parameter(typeof(TEntity));
-        var pipeline = CreateDefaultPipeline();
-        var context = new PipelineContext(pipeline, pipeline);
         return (selectionSet, model) =>
         {
-            var result = ProcessSelectionSet(selectionSet, parameter, typeof(TEntity), context);
-            var expression = Expression.Lambda<Func<TEntity, TEntity>>(result, parameter);
+            var memberInit = BuildMemberInit(selectionSet, parameter, typeof(TEntity), pipeline);
+            var expression = Expression.Lambda<Func<TEntity, TEntity>>(memberInit, parameter);
             return model with
             {
                 Select = expression
             };
-
-            //var parameter = Expression.Parameter(typeof(TEntity));
-            //var bindings = BuildAssignements(typeof(TEntity), parameter, selectionSet);
-            //var result = MemberInit(typeof(TEntity), bindings);
-            //var expression = Expression.Lambda<Func<TEntity, TEntity>>(result, parameter);
-            //return model with
-            //{
-            //    Select = expression
-            //};
         };
     }
 
-    private static Expression ProcessSelectionSet(
+    private static MemberInitExpression BuildMemberInit(
         GraphQLSelectionSet selectionSet,
         Expression parameter,
         Type type,
-        PipelineContext context)
+        PipelineStep pipeline)
     {
-        var bindings = new List<MemberBinding>();
+        var bindings = new List<MemberBinding>(selectionSet.Selections.Count);
 
         foreach (var selection in selectionSet.Selections)
         {
             if (selection is GraphQLField field)
             {
-                var result = ProcessField(field, parameter, type, context);
                 var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
                     ?? throw new NullReferenceException();
 
-                bindings.Add(Expression.Bind(property, result));
+                var bind = ProcessField(field, property, parameter, type, pipeline);
+                bindings.Add(bind);
             }
         }
 
         return Expression.MemberInit(Expression.New(type), bindings);
     }
 
-    private static Expression ProcessField(GraphQLField field, Expression parameter, Type currentType, PipelineContext context) =>
-        context.Next(field, parameter, currentType, context);
-
-    private static MemberInitExpression MemberInit(Type type, IEnumerable<MemberAssignment> assignments)
+    private static MemberAssignment ProcessField(
+        GraphQLField field,
+        PropertyInfo property,
+        Expression parameter,
+        Type type,
+        PipelineStep pipeline)
     {
-        return Expression.MemberInit(Expression.New(type), assignments);
+        var propertyExpression = pipeline(field, parameter, type, TerminalStep);
+        return Expression.Bind(property, propertyExpression);
     }
 
-    private static List<MemberAssignment> BuildAssignements(Type type, Expression parameter, GraphQLSelectionSet set)
+    public readonly static PipelineStep PrimitiveStep = (field, parameter, type, next) =>
     {
-        var bindings = new List<MemberAssignment>(set.Selections.Count);
+        return next(field, parameter, type, next);
+    };
 
-        AssignMember(type, parameter, bindings, set, 0);
-
-        return bindings;
-    }
-
-    private static void AssignMember(Type type, Expression parameter, List<MemberAssignment> result, GraphQLSelectionSet set, int index)
+    public readonly static PipelineStep EntityStep = (field, parameter, type, next) =>
     {
-        if (index >= set.Selections.Count)
-            return;
+        return next(field, parameter, type, next);
+    };
 
-        var member = set.Selections[index];
-        if (member is GraphQLField field)
-        {
-            var assignement = Assign(type, parameter, field);
-            result.Add(assignement);
-        }
-
-        AssignMember(type, parameter, result, set, index + 1);
-    }
-
-    private static MemberAssignment Assign(Type type, Expression parameter, GraphQLField field)
+    public readonly static PipelineStep CollectionStep = (field, parameter, type, next) =>
     {
-        var fieldName = field.Name.StringValue;
-        var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+        return next(field, parameter, type, next);
+    };
 
-        ArgumentNullException.ThrowIfNull(property);
+    public readonly static PipelineStep TerminalStep = (field, parameter, type, next) =>
+    {
+        return Expression.Empty();
+    };
 
-        var propType = property.PropertyType;
+    //public readonly static PipelineDelegate PrimitiveProcessor = (field, parameter, type, context) =>
+    //{
+    //    var fieldName = field.Name.StringValue;
+    //    var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
+    //        throw new NullReferenceException();
 
-        if (propType.IsPrimitive())
-        {
-            var memberAccess = Expression.MakeMemberAccess(parameter, property);
-            return Expression.Bind(property, memberAccess);
-        }
+    //    if (property.PropertyType.IsPrimitive())
+    //        return Expression.MakeMemberAccess(parameter, property);
 
-        var subParameter = Expression.Property(parameter, property);
+    //    return context(field, parameter, type, context);
+    //};
 
-        if (propType.IsEnumerable())
-        {
-            var subEntityType = propType.GenericTypeArguments.FirstOrDefault();
-            var childParameter = Expression.Parameter(subEntityType, "email");
-            var childAssignements = BuildAssignements(subEntityType, childParameter, field.SelectionSet);
-            var childMemberInit = MemberInit(subEntityType, childAssignements);
+    //public readonly static PipelineDelegate SubEntityProcessor = (field, parameter, type, next) =>
+    //{
+    //    var fieldName = field.Name.StringValue;
+    //    var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
+    //        throw new NullReferenceException();
 
-            var selectMethod = typeof(Enumerable).GetMethods()
-                .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
-                .MakeGenericMethod(subEntityType, childMemberInit.Type);
+    //    if (property.PropertyType.IsPrimitive() || property.PropertyType.IsEnumerable())
+    //        return next(field, parameter, type, next);
 
-            var selectorLambda = Expression.Lambda(
-                childMemberInit,
-                childParameter
-            );
+    //    var subEntityParam = Expression.MakeMemberAccess(parameter, property);
 
-            var selectCall = Expression.Call(
-                selectMethod,
-                Expression.PropertyOrField(parameter, property.Name), // source collection
-                selectorLambda // selector
-            );
+    //    var pipeline = ComposeDefault();
+    //    return MemberInitBuild(field.SelectionSet, subEntityParam, property.PropertyType, pipeline);
+    //};
 
-            return Expression.Bind(property, selectCall);
-        }
+    //public readonly static PipelineDelegate CollectionProcessor = (field, parameter, type, context) =>
+    //{
+    //    var fieldName = field.Name.StringValue;
+    //    var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
+    //        throw new NullReferenceException();
 
-        var assignements = BuildAssignements(propType, subParameter, field.SelectionSet);
-        var memberInit = MemberInit(propType, assignements);
-        return Expression.Bind(property, memberInit);
-    }
+    //    var propType = property.PropertyType;
+    //    if (propType.IsEnumerable())
+    //    {
+    //        var subEntityType = propType.GenericTypeArguments.FirstOrDefault();
+    //        var childParameter = Expression.Parameter(subEntityType);
+
+    //        var pipeline = ComposeDefault();
+    //        var childMemberInit = MemberInitBuild(field.SelectionSet, childParameter, subEntityType, pipeline);
+
+    //        var selectMethod = typeof(Enumerable).GetMethods()
+    //            .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
+    //            .MakeGenericMethod(subEntityType, childMemberInit.Type);
+
+    //        var selectorLambda = Expression.Lambda(childMemberInit, childParameter);
+    //        var selectCall = Expression.Call(selectMethod, Expression.PropertyOrField(parameter, property.Name), selectorLambda);
+
+    //        return selectCall;
+    //    }
+
+    //    return context(field, parameter, type, context);
+    //};
+
+    //public readonly static PipelineDelegate TerminalProcessor = (field, parameter, type, context) =>
+    //{
+    //    return Expression.Empty();
+    //};
 }
