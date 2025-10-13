@@ -1,7 +1,5 @@
-﻿using GraphQL.Projection.Extensions;
-using GraphQL.Projection.Models;
+﻿using GraphQL.Projection.Models;
 using GraphQLParser.AST;
-using LanguageExt.Common;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -9,19 +7,17 @@ namespace GraphQL.Projection.Pipeline;
 
 public static class SelectFeatureModule
 {
-    public delegate Expression PipelineStep(GraphQLField field, Expression param, Type type, PipelineStep Next);
-    
-    public static PipelineStep Compose(params PipelineStep[] processors)
+    public delegate Expression PipelineStep(GraphQLField Field, Context Context);
+    public delegate PipelineStep PipelineComposer(PipelineStep next);
+
+    public sealed record Context(Expression Parameter, Type Type, PipelineStep Next);
+
+    public static PipelineStep Compose(PipelineStep terminal, PipelineComposer[] composers)
     {
-        var pipeline = processors.Aggregate(TerminalStep, (currentStep, nextStep) =>
-        {
-            return (field, param, type, context) => nextStep(field, param, type, currentStep);
-        });
-        return pipeline;
+        return composers.Aggregate(terminal, (current, composer) => composer(current));
     }
 
-    public static PipelineStep CreateDefault() => Compose(
-        CollectionStep, EntityStep, PrimitiveStep);
+    public static PipelineStep CreateDefault() => Compose(TerminalStep, [CollectionComposer, EntityComposer, PrimitiveComposer]);
 
     public static GraphQLFeatureModule<TEntity> Create<TEntity>(Func<PipelineStep>? pipelineFactory = null)
     {
@@ -44,50 +40,52 @@ public static class SelectFeatureModule
         Type type,
         PipelineStep pipeline)
     {
-        var bindings = new List<MemberBinding>(selectionSet.Selections.Count);
-
-        foreach (var selection in selectionSet.Selections)
-        {
-            if (selection is GraphQLField field)
-            {
-                var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
-                    ?? throw new NullReferenceException();
-
-                var bind = ProcessField(field, property, parameter, type, pipeline);
-                bindings.Add(bind);
-            }
-        }
-
+        var bindings = selectionSet.Selections
+            .OfType<GraphQLField>()
+            .Select(field => ProcessField(field, parameter, type, pipeline))
+            .Aggregate(
+                new List<MemberBinding>(),
+                (acc, fieldBind) =>
+                {
+                    acc.Add(fieldBind);
+                    return acc;
+                }
+            );
         return Expression.MemberInit(Expression.New(type), bindings);
     }
 
     private static MemberAssignment ProcessField(
         GraphQLField field,
-        PropertyInfo property,
         Expression parameter,
         Type type,
         PipelineStep pipeline)
     {
-        var propertyExpression = pipeline(field, parameter, type, TerminalStep);
+        var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
+            ?? throw new NullReferenceException();
+
+        var context = new Context(parameter, type, TerminalStep);
+        var propertyExpression = pipeline(field, context);
         return Expression.Bind(property, propertyExpression);
     }
 
-    public readonly static PipelineStep PrimitiveStep = (field, parameter, type, next) =>
+    public static PipelineComposer PrimitiveComposer = (next) => (field, context) =>
     {
-        return next(field, parameter, type, next);
+        return next(field, context);
     };
 
-    public readonly static PipelineStep EntityStep = (field, parameter, type, next) =>
+    public static PipelineComposer EntityComposer = (next) => (field, context) =>
     {
-        return next(field, parameter, type, next);
+        return next(field, context);
     };
 
-    public readonly static PipelineStep CollectionStep = (field, parameter, type, next) =>
+    public static PipelineComposer CollectionComposer = (next) => (field, context) =>
     {
-        return next(field, parameter, type, next);
+        var arguments = field.Arguments;
+
+        return next(field, context);
     };
 
-    public readonly static PipelineStep TerminalStep = (field, parameter, type, next) =>
+    public readonly static PipelineStep TerminalStep = (field, context) =>
     {
         return Expression.Empty();
     };
