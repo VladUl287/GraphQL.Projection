@@ -1,6 +1,7 @@
 ﻿using GraphQL.Projection.Extensions;
 using GraphQL.Projection.Models;
 using GraphQLParser.AST;
+using LanguageExt;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -13,21 +14,19 @@ public static class SelectFeatureModule
 
     public sealed record Context(Expression Parameter, Type Type, PipelineStep Pipeline);
 
-    public static PipelineStep Compose(PipelineStep terminal, PipelineComposer[] composers)
-    {
-        return composers.Aggregate(terminal, (current, composer) => composer(current));
-    }
+    public static PipelineStep Compose(PipelineStep terminal, PipelineComposer[] composers) =>
+        composers.Aggregate(terminal, (current, nextComposer) => nextComposer(current));
 
     public static PipelineStep CreateDefaultPipeline() => Compose(TerminalStep, [CollectionComposer, EntityComposer, PrimitiveComposer]);
 
     public static GraphQLFeatureModule Create(Type type, PipelineStep pipeline)
     {
         var parameter = Expression.Parameter(type);
-        var lambdaType = typeof(Func<,>).MakeGenericType(type, type);
-        return (selectionSet, model) =>
+        var genericLambda = typeof(Func<,>).MakeGenericType(type, type);
+        return (set, model) =>
         {
-            var memberInit = BuildMemberInit(selectionSet, parameter, type, pipeline);
-            var expression = Expression.Lambda(lambdaType, memberInit, parameter);
+            var memberInit = CreateMemberInitialization(set, parameter, type, pipeline);
+            var expression = Expression.Lambda(genericLambda, memberInit, parameter);
             return model with
             {
                 Select = expression
@@ -35,27 +34,29 @@ public static class SelectFeatureModule
         };
     }
 
-    private static MemberInitExpression BuildMemberInit(
+    private static MemberInitExpression CreateMemberInitialization(
         GraphQLSelectionSet selectionSet,
-        Expression parameter,
-        Type type,
+        Expression sourceParameter,
+        Type targetType,
         PipelineStep pipeline)
     {
-        var bindings = selectionSet.Selections
-            .OfType<GraphQLField>()
-            .Select(field => ProcessField(field, parameter, type, pipeline))
-            .Aggregate(
-                new List<MemberBinding>(),
-                (acc, fieldBind) =>
-                {
-                    acc.Add(fieldBind);
-                    return acc;
-                }
-            );
-        return Expression.MemberInit(Expression.New(type), bindings);
+        var fieldBindings = CreateFieldBindings(selectionSet, sourceParameter, targetType, pipeline);
+        var constructorCall = Expression.New(targetType);
+        return Expression.MemberInit(constructorCall, fieldBindings);
     }
 
-    private static MemberAssignment ProcessField(
+    private static IEnumerable<MemberBinding> CreateFieldBindings(
+        GraphQLSelectionSet selectionSet,
+        Expression sourceParameter,
+        Type targetType,
+        PipelineStep pipeline)
+    {
+        return selectionSet.Selections
+            .OfType<GraphQLField>()
+            .Select(field => CreateFieldBinding(field, sourceParameter, targetType, pipeline));
+    }
+
+    private static MemberAssignment CreateFieldBinding(
         GraphQLField field,
         Expression parameter,
         Type type,
@@ -91,7 +92,7 @@ public static class SelectFeatureModule
             return next(field, context);
 
         var childParameter = Expression.MakeMemberAccess(context.Parameter, property);
-        var memberInit = BuildMemberInit(field.SelectionSet, childParameter, property.PropertyType, context.Pipeline);
+        var memberInit = CreateMemberInitialization(field.SelectionSet, childParameter, property.PropertyType, context.Pipeline);
         return memberInit;
     };
 
@@ -107,7 +108,7 @@ public static class SelectFeatureModule
             var subEntityType = propType.GenericTypeArguments.FirstOrDefault();
             var childParameter = Expression.Parameter(subEntityType);
 
-            var memberInit = BuildMemberInit(field.SelectionSet, childParameter, subEntityType, context.Pipeline);
+            var memberInit = CreateMemberInitialization(field.SelectionSet, childParameter, subEntityType, context.Pipeline);
 
             var selectMethod = typeof(Enumerable).GetMethods()
                 .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
