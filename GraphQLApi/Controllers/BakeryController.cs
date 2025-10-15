@@ -27,11 +27,11 @@ public class BakeryController : GraphController
     {
         var query = dbContext.Users.AsQueryable();
 
-        var pipeline = PipelineComposition.CreatePipeline<User>();
+        //var pipeline = PipelineComposition.CreatePipeline<User>();
 
-        var document = Parser.Parse(Context.QueryRequest.QueryText);
+        //var document = Parser.Parse(Context.QueryRequest.QueryText);
 
-        query = query.Translate(document, pipeline);
+        //query = query.Translate(document, pipeline);
 
         return query.ToArray();
     }

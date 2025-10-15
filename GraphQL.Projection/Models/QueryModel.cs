@@ -2,7 +2,7 @@
 
 namespace GraphQL.Projection.Models;
 
-public sealed record QueryModel<TEntity>(Expression<Func<TEntity, TEntity>> Select)
+public sealed record QueryModel(LambdaExpression Select)
 {
-    public static readonly QueryModel<TEntity> Empty = new((Expression<Func<TEntity, TEntity>>)(null));
+    public static readonly QueryModel Empty = new((LambdaExpression)null);
 }

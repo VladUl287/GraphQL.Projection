@@ -2,6 +2,6 @@
 
 namespace GraphQL.Projection.Models;
 
-public delegate QueryModel<TEntity> GraphQLFeatureModule<TEntity>(
+public delegate QueryModel GraphQLFeatureModule(
     GraphQLSelectionSet doc, 
-    QueryModel<TEntity> model);
+    QueryModel model);

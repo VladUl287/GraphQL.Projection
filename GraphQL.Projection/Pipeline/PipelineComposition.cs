@@ -4,14 +4,15 @@ namespace GraphQL.Projection.Pipeline;
 
 public static class PipelineComposition
 {
-    public static GraphQLFeatureModule<TEntity> Compose<TEntity>(params GraphQLFeatureModule<TEntity>[] modules)
+    public static GraphQLFeatureModule Compose(params GraphQLFeatureModule[] modules)
     {
         return modules.Aggregate((first, second) => (doc, model) => second(doc, first(doc, model)));
     }
 
-    public static GraphQLFeatureModule<TEntity> CreatePipeline<TEntity>()
+    public static GraphQLFeatureModule CreatePipeline(Type entity)
     {
-        var select = SelectFeatureModule.Create<TEntity>();
+        var defaultPipeline = SelectFeatureModule.CreateDefaultPipeline();
+        var select = SelectFeatureModule.Create(entity, defaultPipeline);
         return Compose(select);
     }
 }

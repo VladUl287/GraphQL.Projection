@@ -1,4 +1,5 @@
-﻿using GraphQL.Projection.Models;
+﻿using GraphQL.Projection.Extensions;
+using GraphQL.Projection.Models;
 using GraphQLParser.AST;
 using System.Linq.Expressions;
 using System.Reflection;
@@ -10,23 +11,23 @@ public static class SelectFeatureModule
     public delegate Expression PipelineStep(GraphQLField Field, Context Context);
     public delegate PipelineStep PipelineComposer(PipelineStep next);
 
-    public sealed record Context(Expression Parameter, Type Type, PipelineStep Next);
+    public sealed record Context(Expression Parameter, Type Type);
 
     public static PipelineStep Compose(PipelineStep terminal, PipelineComposer[] composers)
     {
         return composers.Aggregate(terminal, (current, composer) => composer(current));
     }
 
-    public static PipelineStep CreateDefault() => Compose(TerminalStep, [CollectionComposer, EntityComposer, PrimitiveComposer]);
+    public static PipelineStep CreateDefaultPipeline() => Compose(TerminalStep, [CollectionComposer, EntityComposer, PrimitiveComposer]);
 
-    public static GraphQLFeatureModule<TEntity> Create<TEntity>(Func<PipelineStep>? pipelineFactory = null)
+    public static GraphQLFeatureModule Create(Type type, PipelineStep pipeline)
     {
-        var pipeline = pipelineFactory?.Invoke() ?? CreateDefault();
-        var parameter = Expression.Parameter(typeof(TEntity));
+        var parameter = Expression.Parameter(type);
+        var lambdaType = typeof(Func<,>).MakeGenericType(type, type);
         return (selectionSet, model) =>
         {
-            var memberInit = BuildMemberInit(selectionSet, parameter, typeof(TEntity), pipeline);
-            var expression = Expression.Lambda<Func<TEntity, TEntity>>(memberInit, parameter);
+            var memberInit = BuildMemberInit(selectionSet, parameter, type, pipeline);
+            var expression = Expression.Lambda(lambdaType, memberInit, parameter);
             return model with
             {
                 Select = expression
@@ -63,13 +64,20 @@ public static class SelectFeatureModule
         var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
             ?? throw new NullReferenceException();
 
-        var context = new Context(parameter, type, TerminalStep);
+        var context = new Context(parameter, type);
         var propertyExpression = pipeline(field, context);
         return Expression.Bind(property, propertyExpression);
     }
 
     public static PipelineComposer PrimitiveComposer = (next) => (field, context) =>
     {
+        var fieldName = field.Name.StringValue;
+        var property = context.Type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
+            throw new NullReferenceException();
+
+        if (property.PropertyType.IsPrimitive())
+            return Expression.MakeMemberAccess(context.Parameter, property);
+
         return next(field, context);
     };
 
