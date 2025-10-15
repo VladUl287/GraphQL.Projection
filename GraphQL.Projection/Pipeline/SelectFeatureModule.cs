@@ -2,6 +2,7 @@
 using GraphQL.Projection.Models;
 using GraphQLParser.AST;
 using LanguageExt;
+using LanguageExt.Common;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -69,6 +70,27 @@ public static class SelectFeatureModule
         var propertyExpression = pipeline(field, context);
         return Expression.Bind(property, propertyExpression);
     }
+
+    private static Either<Error, MemberBinding> CreateFieldBindingFunctional(
+        GraphQLField field,
+        Expression parameter,
+        Type type,
+        PipelineStep pipeline)
+    {
+        return Prelude
+            .Try<MemberBinding>(() =>
+            {
+                var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
+                    ?? throw new NullReferenceException();
+
+                var context = new Context(parameter, type, pipeline);
+                var propertyExpression = pipeline(field, context);
+                return Expression.Bind(property, propertyExpression);
+            })
+            .ToEither()
+            .MapLeft(ex => Error.New($"Failed to create binding for field {field.Name}: {ex.Message}"));
+    }
+
 
     public readonly static PipelineComposer PrimitiveComposer = (next) => (field, context) =>
     {
