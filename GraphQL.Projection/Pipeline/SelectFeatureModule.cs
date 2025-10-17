@@ -19,7 +19,7 @@ public static class SelectFeatureModule
     public static PipelineStep Compose(PipelineStep terminal, PipelineComposer[] composers) =>
         composers.Aggregate(terminal, (current, nextComposer) => nextComposer(current));
 
-    public static PipelineStep CreateDefaultPipeline() => Compose(TerminalStep, [CollectionComposer, EntityComposer, PrimitiveComposer]);
+    public static PipelineStep CreateDefaultPipeline() => Compose(TerminalStep, [CollectionComposer, EntityComposer, PrimitiveComposer, WithArguments]);
 
     public static GraphQLFeatureModule Create(Type type, PipelineStep pipeline)
     {
@@ -79,6 +79,35 @@ public static class SelectFeatureModule
 
         return next(field, context);
     };
+
+    private readonly static PipelineComposer WithArguments = (next) => (field, context) =>
+    {
+        var result = next(field, context);
+
+        if (field.Arguments is { Count: > 0 })
+        {
+            ApplyArguments(result, field.Arguments[0], typeof(object));
+        }
+
+        return result;
+    };
+
+    private static Expression ApplyArguments(Expression source, GraphQLArgument arg, Type type)
+    {
+        return arg.Name.StringValue switch
+        {
+            "where" => ApplyWhereFilter(source, arg, type),
+            _ => source
+        };
+    }
+
+    private static Expression ApplyWhereFilter(Expression expression, GraphQLArgument arg, Type type)
+    {
+        return arg switch
+        {
+            _ => expression
+        };
+    }
 
     public readonly static PipelineComposer EntityComposer = (next) => (field, context) =>
     {
