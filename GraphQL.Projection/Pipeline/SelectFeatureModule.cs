@@ -2,7 +2,6 @@
 using GraphQL.Projection.Models;
 using GraphQLParser.AST;
 using LanguageExt;
-using LanguageExt.Common;
 using System.Linq.Expressions;
 using System.Reflection;
 
@@ -13,7 +12,9 @@ public static class SelectFeatureModule
     public delegate Expression PipelineStep(GraphQLField Field, Context Context);
     public delegate PipelineStep PipelineComposer(PipelineStep next);
 
-    public sealed record Context(Expression Parameter, Type Type, PipelineStep Pipeline);
+    public delegate MemberInitExpression TreeProcessor(GraphQLSelectionSet selectionSet, Expression sourceParameter, Type targetType, PipelineStep pipeline);
+
+    public sealed record Context(Expression Parameter, Type Type, PipelineStep Pipeline, TreeProcessor ProcessTree);
 
     public static PipelineStep Compose(PipelineStep terminal, PipelineComposer[] composers) =>
         composers.Aggregate(terminal, (current, nextComposer) => nextComposer(current));
@@ -26,7 +27,7 @@ public static class SelectFeatureModule
         var genericLambda = typeof(Func<,>).MakeGenericType(type, type);
         return (set, model) =>
         {
-            var memberInit = CreateMemberInitialization(set, parameter, type, pipeline);
+            var memberInit = ProcessTree(set, parameter, type, pipeline);
             var expression = Expression.Lambda(genericLambda, memberInit, parameter);
             return model with
             {
@@ -35,61 +36,57 @@ public static class SelectFeatureModule
         };
     }
 
-    private static MemberInitExpression CreateMemberInitialization(
+    private static MemberInitExpression ProcessTree(
         GraphQLSelectionSet selectionSet,
         Expression sourceParameter,
         Type targetType,
         PipelineStep pipeline)
     {
-        var fieldBindings = CreateFieldBindings(selectionSet, sourceParameter, targetType, pipeline);
+        var context = new Context(sourceParameter, targetType, pipeline, ProcessTree);
+        var fieldBindings = CreateFieldBindings(selectionSet, context);
         var constructorCall = Expression.New(targetType);
         return Expression.MemberInit(constructorCall, fieldBindings);
     }
 
     private static IEnumerable<MemberBinding> CreateFieldBindings(
         GraphQLSelectionSet selectionSet,
-        Expression sourceParameter,
-        Type targetType,
-        PipelineStep pipeline)
+        Context context)
     {
         return selectionSet.Selections
             .OfType<GraphQLField>()
-            .Select(field => CreateFieldBinding(field, sourceParameter, targetType, pipeline));
+            .Select(field => CreateFieldBinding(field, context));
     }
 
     private static MemberAssignment CreateFieldBinding(
         GraphQLField field,
-        Expression parameter,
-        Type type,
-        PipelineStep pipeline)
+        Context context)
     {
-        var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
+        var property = context.Type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
             ?? throw new NullReferenceException();
 
-        var context = new Context(parameter, type, pipeline);
-        var propertyExpression = pipeline(field, context);
+        var propertyExpression = context.Pipeline(field, context);
         return Expression.Bind(property, propertyExpression);
     }
 
-    private static Either<Error, MemberBinding> CreateFieldBindingFunctional(
-        GraphQLField field,
-        Expression parameter,
-        Type type,
-        PipelineStep pipeline)
-    {
-        return Prelude
-            .Try<MemberBinding>(() =>
-            {
-                var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
-                    ?? throw new NullReferenceException();
+    //private static Either<Error, MemberBinding> CreateFieldBindingFunctional(
+    //    GraphQLField field,
+    //    Expression parameter,
+    //    Type type,
+    //    PipelineStep pipeline)
+    //{
+    //    return Prelude
+    //        .Try<MemberBinding>(() =>
+    //        {
+    //            var property = type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
+    //                ?? throw new NullReferenceException();
 
-                var context = new Context(parameter, type, pipeline);
-                var propertyExpression = pipeline(field, context);
-                return Expression.Bind(property, propertyExpression);
-            })
-            .ToEither()
-            .MapLeft(ex => Error.New($"Failed to create binding for field {field.Name}: {ex.Message}"));
-    }
+    //            var context = new Context(parameter, type, pipeline);
+    //            var propertyExpression = pipeline(field, context);
+    //            return Expression.Bind(property, propertyExpression);
+    //        })
+    //        .ToEither()
+    //        .MapLeft(ex => Error.New($"Failed to create binding for field {field.Name}: {ex.Message}"));
+    //}
 
 
     public readonly static PipelineComposer PrimitiveComposer = (next) => (field, context) =>
@@ -110,11 +107,14 @@ public static class SelectFeatureModule
         var property = context.Type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance) ??
             throw new NullReferenceException();
 
-        if (property.PropertyType.IsPrimitive() || property.PropertyType.IsEnumerable())
+        if (field is not { SelectionSet.Selections.Count: > 0 })
+            return next(field, context);
+
+        if (property.PropertyType.IsEnumerable())
             return next(field, context);
 
         var childParameter = Expression.MakeMemberAccess(context.Parameter, property);
-        var memberInit = CreateMemberInitialization(field.SelectionSet, childParameter, property.PropertyType, context.Pipeline);
+        var memberInit = context.ProcessTree(field.SelectionSet, childParameter, property.PropertyType, context.Pipeline);
         return memberInit;
     };
 
@@ -125,24 +125,26 @@ public static class SelectFeatureModule
             throw new NullReferenceException();
 
         var propType = property.PropertyType;
-        if (propType.IsEnumerable())
-        {
-            var subEntityType = propType.GenericTypeArguments.FirstOrDefault();
-            var childParameter = Expression.Parameter(subEntityType);
 
-            var memberInit = CreateMemberInitialization(field.SelectionSet, childParameter, subEntityType, context.Pipeline);
+        if (field is not { SelectionSet.Selections.Count: > 0 })
+            return next(field, context);
 
-            var selectMethod = typeof(Enumerable).GetMethods()
-                .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
-                .MakeGenericMethod(subEntityType, memberInit.Type);
+        if (!propType.IsEnumerable())
+            return next(field, context);
 
-            var selectorLambda = Expression.Lambda(memberInit, childParameter);
-            var selectCall = Expression.Call(selectMethod, Expression.PropertyOrField(context.Parameter, property.Name), selectorLambda);
+        var subEntityType = propType.GenericTypeArguments.FirstOrDefault();
+        var childParameter = Expression.Parameter(subEntityType);
 
-            return selectCall;
-        }
+        var memberInit = context.ProcessTree(field.SelectionSet, childParameter, subEntityType, context.Pipeline);
 
-        return next(field, context);
+        var selectMethod = typeof(Enumerable).GetMethods()
+            .First(m => m.Name == "Select" && m.GetParameters().Length == 2)
+            .MakeGenericMethod(subEntityType, memberInit.Type);
+
+        var selectorLambda = Expression.Lambda(memberInit, childParameter);
+        var selectCall = Expression.Call(selectMethod, Expression.PropertyOrField(context.Parameter, property.Name), selectorLambda);
+
+        return selectCall;
     };
 
     public readonly static PipelineStep TerminalStep = (field, context) =>
