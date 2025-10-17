@@ -7,14 +7,14 @@ using System.Reflection;
 
 namespace GraphQL.Projection.Pipeline;
 
-public static class SelectFeatureModule
+public static class ExpressionTreeBuilder
 {
-    public delegate Expression PipelineStep(GraphQLField Field, Context Context);
+    public delegate Expression PipelineStep(GraphQLField Field, ProcessingContext Context);
     public delegate PipelineStep PipelineComposer(PipelineStep next);
 
     public delegate MemberInitExpression TreeProcessor(GraphQLSelectionSet selectionSet, Expression sourceParameter, Type targetType, PipelineStep pipeline);
 
-    public sealed record Context(Expression Parameter, Type Type, PipelineStep Pipeline, TreeProcessor ProcessTree);
+    public sealed record ProcessingContext(Expression Parameter, Type Type, PipelineStep Pipeline, TreeProcessor ProcessTree);
 
     public static PipelineStep Compose(PipelineStep terminal, PipelineComposer[] composers) =>
         composers.Aggregate(terminal, (current, nextComposer) => nextComposer(current));
@@ -42,7 +42,7 @@ public static class SelectFeatureModule
         Type targetType,
         PipelineStep pipeline)
     {
-        var context = new Context(sourceParameter, targetType, pipeline, ProcessTree);
+        var context = new ProcessingContext(sourceParameter, targetType, pipeline, ProcessTree);
         var fieldBindings = CreateFieldBindings(selectionSet, context);
         var constructorCall = Expression.New(targetType);
         return Expression.MemberInit(constructorCall, fieldBindings);
@@ -50,7 +50,7 @@ public static class SelectFeatureModule
 
     private static IEnumerable<MemberBinding> CreateFieldBindings(
         GraphQLSelectionSet selectionSet,
-        Context context)
+        ProcessingContext context)
     {
         return selectionSet.Selections
             .OfType<GraphQLField>()
@@ -59,7 +59,7 @@ public static class SelectFeatureModule
 
     private static MemberAssignment CreateFieldBinding(
         GraphQLField field,
-        Context context)
+        ProcessingContext context)
     {
         var property = context.Type.GetProperty(field.Name.StringValue, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance)
             ?? throw new NullReferenceException();

@@ -11,8 +11,8 @@ public static class PipelineComposition
 
     public static GraphQLFeatureModule CreatePipeline(Type entity)
     {
-        var defaultPipeline = SelectFeatureModule.CreateDefaultPipeline();
-        var select = SelectFeatureModule.Create(entity, defaultPipeline);
+        var defaultPipeline = ExpressionTreeBuilder.CreateDefaultPipeline();
+        var select = ExpressionTreeBuilder.Create(entity, defaultPipeline);
         return Compose(select);
     }
 }
