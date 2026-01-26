@@ -5,8 +5,6 @@ VisualStudioVersion = 17.0.31903.59
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.Projection", "graphql.projection\GraphQL.Projection.csproj", "{94DCFF3F-A799-41DC-9A44-BE6767EB13E0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQLApi", "GraphQLApi\GraphQLApi.csproj", "{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQLApi.Console", "GraphQLApi.Console\GraphQLApi.Console.csproj", "{1FF388FD-786F-4576-8D33-9B32F4171D50}"
 EndProject
 Global
@@ -19,10 +17,6 @@ Global
 		{94DCFF3F-A799-41DC-9A44-BE6767EB13E0}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{94DCFF3F-A799-41DC-9A44-BE6767EB13E0}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{94DCFF3F-A799-41DC-9A44-BE6767EB13E0}.Release|Any CPU.Build.0 = Release|Any CPU
-		{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{2172D785-390B-4F6F-82CA-A9F8D36FF7C3}.Release|Any CPU.Build.0 = Release|Any CPU
 		{1FF388FD-786F-4576-8D33-9B32F4171D50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{1FF388FD-786F-4576-8D33-9B32F4171D50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1FF388FD-786F-4576-8D33-9B32F4171D50}.Release|Any CPU.ActiveCfg = Release|Any CPU
