@@ -36,8 +36,8 @@ foreach (var definition in document.Definitions)
 ArgumentNullException.ThrowIfNull(qlField);
 ArgumentNullException.ThrowIfNull(qLSelectionSet);
 
-var pipeline = PipelineComposition.CreatePipeline<UserExt>();
+var pipeline = PipelineComposition.CreatePipeline(typeof(UserExt));
 
-var queryModel = pipeline(qLSelectionSet, QueryModel<UserExt>.Empty);
+var queryModel = pipeline(qLSelectionSet, QueryModel.Empty);
 
 Console.WriteLine(queryModel.Select.ToString());

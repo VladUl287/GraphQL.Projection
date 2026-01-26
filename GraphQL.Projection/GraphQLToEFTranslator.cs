@@ -1,5 +1,4 @@
 ﻿using GraphQL.Projection.Models;
-using GraphQL.Projection.Pipeline;
 using GraphQLParser.AST;
 
 namespace GraphQL.Projection;

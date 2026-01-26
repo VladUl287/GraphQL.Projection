@@ -1,7 +1,7 @@
-﻿using System.Reflection;
-using System.Linq.Expressions;
-using GraphQL.Projection.Resolvers.Contracts;
+﻿using GraphQL.Projection.Resolvers.Contracts;
 using GraphQL.Projection.Strategy.Binding.Contracts;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace GraphQL.Projection.Strategy.Binding;
 

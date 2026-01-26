@@ -1,6 +1,6 @@
-﻿using System.Linq.Expressions;
-using GraphQL.Projection.Resolvers.Contracts;
+﻿using GraphQL.Projection.Resolvers.Contracts;
 using GraphQL.Projection.Visitor;
+using System.Linq.Expressions;
 
 namespace GraphQL.Projection.Resolvers;
 

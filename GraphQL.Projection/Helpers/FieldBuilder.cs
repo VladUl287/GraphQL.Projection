@@ -30,7 +30,7 @@ public sealed class FieldBuilder : IFieldBinder
         var fieldName = field.Name.StringValue;
         var property = type.GetProperty(fieldName, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
 
-        var propType = typeResolver.GetPropertyType(property!.PropertyType) 
+        var propType = typeResolver.GetPropertyType(property!.PropertyType)
             ?? throw new Exception("Not supported type");
 
         if (propType.IsPrimitive())

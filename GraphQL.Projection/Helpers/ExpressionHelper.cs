@@ -1,7 +1,7 @@
-﻿using System.Reflection;
-using System.Linq.Expressions;
-using GraphQL.Projection.Extensions;
+﻿using GraphQL.Projection.Extensions;
 using GraphQLParser.AST;
+using System.Linq.Expressions;
+using System.Reflection;
 
 namespace GraphQL.Projection.Strategy.Helper;
 
@@ -10,7 +10,7 @@ public sealed class ExpressionHelper
     public Expression<Func<TEntity, TEntity>> GetLambdaExpression<TEntity>(GraphQLSelectionSet node)
     {
         var parameter = Expression.Parameter(typeof(TEntity));
-        
+
         var initExpression = MemberInit(typeof(TEntity), parameter, [.. node.Selections]);
 
         return Expression.Lambda<Func<TEntity, TEntity>>(initExpression, parameter);

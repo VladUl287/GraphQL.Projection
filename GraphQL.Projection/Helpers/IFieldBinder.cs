@@ -5,5 +5,5 @@ namespace GraphQL.Projection.Helpers;
 
 public interface IFieldBinder
 {
-    MemberAssignment Assign(Expression parameter, Type type, GraphQLField field); 
+    MemberAssignment Assign(Expression parameter, Type type, GraphQLField field);
 }

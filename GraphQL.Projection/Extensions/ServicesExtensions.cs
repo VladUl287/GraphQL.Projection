@@ -5,7 +5,6 @@ using GraphQL.Projection.Resolvers.Contracts;
 using GraphQL.Projection.Strategy.Binding;
 using GraphQL.Projection.Strategy.Binding.Contracts;
 using GraphQL.Projection.Visitor;
-using GraphQL.Projection.Visitors;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace GraphQL.Projection.Extensions;

@@ -1,5 +1,5 @@
-﻿using System.Reflection;
-using GraphQL.Projection.Chains.TypeResolving.Contracts;
+﻿using GraphQL.Projection.Chains.TypeResolving.Contracts;
+using System.Reflection;
 
 namespace GraphQL.Projection.Chains.TypeResolving;
 
