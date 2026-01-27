@@ -1,9 +1,4 @@
-﻿using GraphQL.Projection.Extensions;
-using GraphQL.Projection.Models;
-using GraphQL.Projection.Pipeline;
-using GraphQL.Projection.Services;
-using GraphQLApi.Console;
-using GraphQLParser;
+﻿using GraphQLParser;
 using GraphQLParser.AST;
 
 var query = """
@@ -37,12 +32,3 @@ foreach (var definition in document.Definitions)
 
 ArgumentNullException.ThrowIfNull(qlField);
 ArgumentNullException.ThrowIfNull(qLSelectionSet);
-
-var queriable = document
-    .BuildExecutionPlan()
-    .ConvertToQueryable<UserExt>();
-
-var pipeline = PipelineComposition.CreatePipeline(typeof(UserExt));
-var queryModel = pipeline(qLSelectionSet, QueryModel.Empty);
-
-Console.WriteLine(queryModel.Select.ToString());
