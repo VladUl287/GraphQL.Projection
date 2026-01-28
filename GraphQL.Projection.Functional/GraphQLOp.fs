@@ -21,7 +21,7 @@ and GraphQLValue =
 
 type GraphQLOp<'a> =
     | Field of name: string * arguments: ArgumentNode list * next: (GraphQLNode -> 'a)
-    | Object of name: string * selections: GraphQLOp<GraphQLNode> list * next: (GraphQLNode -> 'a)
+    | Object of name: string * selections: GraphQLOp<'a> list * next: (GraphQLNode -> 'a)
 
 module Operations =
     let rec map (f: 'a -> 'b) (op: GraphQLOp<'a>) : GraphQLOp<'b> =
