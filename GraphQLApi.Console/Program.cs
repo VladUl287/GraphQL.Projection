@@ -1,4 +1,5 @@
-﻿using GraphQLParser;
+﻿using GraphQL.Projection;
+using GraphQLParser;
 using GraphQLParser.AST;
 
 var query = """

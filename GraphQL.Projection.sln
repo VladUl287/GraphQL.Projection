@@ -7,6 +7,10 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "GraphQL.Projection", "graph
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GraphQLApi.Console", "GraphQLApi.Console\GraphQLApi.Console.csproj", "{1FF388FD-786F-4576-8D33-9B32F4171D50}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GraphQL.Projection.Functional", "GraphQL.Projection.Functional\GraphQL.Projection.Functional.fsproj", "{B2150CDF-EFF0-405A-BDBB-6F0EEC5F6373}"
+EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GraphQL.Projection.Functional.Console", "GraphQL.Projection.Functional.Console\GraphQL.Projection.Functional.Console.fsproj", "{222E8166-5D64-4975-8732-52B6BB91B3E2}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +25,14 @@ Global
 		{1FF388FD-786F-4576-8D33-9B32F4171D50}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1FF388FD-786F-4576-8D33-9B32F4171D50}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1FF388FD-786F-4576-8D33-9B32F4171D50}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B2150CDF-EFF0-405A-BDBB-6F0EEC5F6373}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B2150CDF-EFF0-405A-BDBB-6F0EEC5F6373}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B2150CDF-EFF0-405A-BDBB-6F0EEC5F6373}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B2150CDF-EFF0-405A-BDBB-6F0EEC5F6373}.Release|Any CPU.Build.0 = Release|Any CPU
+		{222E8166-5D64-4975-8732-52B6BB91B3E2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{222E8166-5D64-4975-8732-52B6BB91B3E2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{222E8166-5D64-4975-8732-52B6BB91B3E2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{222E8166-5D64-4975-8732-52B6BB91B3E2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
