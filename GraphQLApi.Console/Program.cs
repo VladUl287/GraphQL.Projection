@@ -1,6 +1,9 @@
 ﻿using GraphQL.Projection;
+using GraphQLApi.Console;
 using GraphQLParser;
 using GraphQLParser.AST;
+using System.Linq.Expressions;
+using System.Reflection;
 
 var query = """
     query {
@@ -30,6 +33,11 @@ foreach (var definition in document.Definitions)
         break;
     }
 }
+
+var parameter = Expression.Parameter(typeof(UserExt));
+var property = typeof(UserExt)
+    .GetProperty("test", BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+var expression = Expression.Property(parameter, property);
 
 ArgumentNullException.ThrowIfNull(qlField);
 ArgumentNullException.ThrowIfNull(qLSelectionSet);
