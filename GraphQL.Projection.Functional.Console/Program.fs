@@ -32,6 +32,15 @@ let buildSelector<'a, 'b> (node: GraphQLNode) : Expression<Func<'a, 'b>> =
                 let members = 
                     selections |> List.map (fun selection ->
                         toExpression nestedType nestedAccess selection
+
+                        //let expr = toExpression nestedType nestedAccess selection
+                        //// Assuming expr is a MemberExpression (property access)
+                        //match expr with
+                        //| :? MemberExpression as memberExpr ->
+                        //    // Bind the member to its value expression
+                        //    Expression.Bind(memberExpr.Member, memberExpr) :> MemberBinding
+                        //| _ -> failwithf "Expected property access, got %A" expr.NodeType
+
                         //match selection with
                         //    | FieldNode(fieldName, _) ->
                         //        let fieldProperty = nestedType.GetProperty(selection, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
