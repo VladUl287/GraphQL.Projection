@@ -20,22 +20,37 @@ printfn "AST: %A" ast
 let buildSelector<'a, 'b> (node: GraphQLNode) : Expression<Func<'a, 'b>> =
     let parameter = Expression.Parameter(typeof<'a>)
 
-    let toExpression (param: ParameterExpression) (node: GraphQLNode): Expression = 
+    let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode): Expression = 
         match node with
             | FieldNode(name, args) -> 
-                let property = typeof<'a>.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 Expression.Property(param, property) :> Expression
-            | ObjectNode(name, selections) -> Expression.Empty() :> Expression
+            | ObjectNode(name, selections) -> 
+                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let nestedAccess = Expression.Property(param, property)
+                let nestedType = property.PropertyType
+                let members = 
+                    selections |> List.map (fun selection ->
+                        toExpression nestedType nestedAccess selection
+                        //match selection with
+                        //    | FieldNode(fieldName, _) ->
+                        //        let fieldProperty = nestedType.GetProperty(selection, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                        //        let fieldAccess = Expression.Property(nestedAccess, fieldProperty)
+                        //        Expression.Bind(fieldProperty, fieldAccess) :> MemberBinding
+                        //    | ObjectNode(_, _) -> failwith "Deep nesting not implemented"
+                    )
+                //Expression.MemberInit(Expression.New(nestedType), members)
+                Expression.Empty()
 
-    let body = toExpression parameter node
+    let body = toExpression typeof<'a> parameter node
     Expression.Lambda<Func<'a, 'b>>(body, parameter)
 
-let toExpression<'a> (node: GraphQLNode): Expression = 
-    match node with
-        | FieldNode(name, args) -> 
-            let property = typeof<'a>.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-            let parameter = Expression.Parameter(typeof<'a>)
-            Expression.Property(parameter, property) :> Expression
-        | ObjectNode(name, selections) -> Expression.Empty() :> Expression
+//let toExpression<'a> (node: GraphQLNode): Expression = 
+//    match node with
+//        | FieldNode(name, args) -> 
+//            let property = typeof<'a>.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+//            let parameter = Expression.Parameter(typeof<'a>)
+//            Expression.Property(parameter, property) :> Expression
+//        | ObjectNode(name, selections) -> Expression.Empty() :> Expression
 
-let expression = map (toExpression) userQuery
+//let expression = map (toExpression) userQuery
