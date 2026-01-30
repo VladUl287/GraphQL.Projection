@@ -8,10 +8,10 @@ let userQuery =
     object' "user" [
         field "id" []
         field "name" []
-        //object' "phone" [
-        //    field "country" []
-        //    field "number" []
-        //]
+        object' "phone" [
+            field "country" []
+            field "number" []
+        ]
     ]
 
 let ast = interpret userQuery
@@ -20,21 +20,6 @@ printfn "AST: %A" ast
 let buildSelector<'a, 'b> (node: GraphQLNode) : Expression<Func<'a, 'b>> =
     let parameter = Expression.Parameter(typeof<'a>)
 
-    let rec toMemberBinding (currentType: Type) (param: Expression) (node: GraphQLNode): MemberBinding = 
-        match node with
-            | FieldNode(name, args) -> 
-                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                let access = Expression.Property(param, property) :> Expression
-                Expression.Bind(property, access) :> MemberBinding
-            | ObjectNode(name, selections) -> 
-                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                let nestedAccess = Expression.Property(param, property)
-                let nestedType = property.PropertyType
-                let bindings = selections |> List.map (toMemberBinding nestedType nestedAccess)
-                let memberInit = Expression.MemberInit(Expression.New(nestedType), bindings) :> Expression
-                Expression.Bind(property, memberInit) :> MemberBinding
-                //Expression.MemberBind(property, bindings) :> MemberBinding
-
     let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode) (root: bool): Expression = 
         match node with
             | FieldNode(name, args) -> 
@@ -42,29 +27,31 @@ let buildSelector<'a, 'b> (node: GraphQLNode) : Expression<Func<'a, 'b>> =
                 Expression.Property(param, property) :> Expression
             | ObjectNode(name, selections) -> 
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+
                 let nestedAccess = 
                     match root with
                        | true -> param
                        | false -> Expression.Property(param, property)
+
                 let nestedType = nestedAccess.Type
 
-                let ctor = typeof<'b>.GetConstructors().[0]
+                let ctor = nestedType.GetConstructors().[0]
 
                 let members = 
                     selections |> List.map (fun selection ->
-                        let expr = toExpression nestedType nestedAccess selection false
-                        match expr with
-                        | :? MemberExpression as memberExpr -> Expression.Bind(memberExpr.Member, memberExpr) :> MemberBinding
-                        | _ -> failwithf "Expected property access, got %A" expr.NodeType
+                        toExpression nestedType nestedAccess selection false
                     )
-                Expression.MemberInit(Expression.New(nestedType), members) :> Expression
+
+                Expression.New(ctor, members)
 
     let body = toExpression typeof<'a> parameter node true
     Expression.Lambda<Func<'a, 'b>>(body, parameter)
 
-type User = { Id: int; Name: string; Email: string }
+type Phone = { Country: string; Number: string; }
+type User = { Id: int; Name: string; Phone: Phone }
 
 let selector = buildSelector<User, User> ast
+printfn "Selector: %A" selector
 
 //let toExpression<'a> (node: GraphQLNode): Expression = 
 //    match node with
