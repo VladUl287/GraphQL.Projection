@@ -3,6 +3,7 @@ open System.Reflection
 open System.Linq.Expressions
 open GraphQLOp
 open GraphQLOp.Operations
+open CretaeAnonymousType
 
 let userQuery = 
     object' "user" [
@@ -17,7 +18,29 @@ let userQuery =
 let ast = interpret userQuery
 printfn "AST: %A" ast
 
-let buildSelector<'a, 'b> (node: GraphQLNode) : Expression<Func<'a, 'b>> =
+let isBuiltInType (typ: Type) =
+    typ.Namespace = "System" && not typ.IsClass
+    || typ.IsPrimitive 
+    || typ = typeof<string>
+    || typ = typeof<DateTime>
+    || typ = typeof<DateTimeOffset>
+    || typ = typeof<TimeSpan>
+    || typ = typeof<Guid>
+    || typ = typeof<decimal>
+    || typ = typeof<obj>
+
+let getPropertyTypes (propsNames: string list) (targetType: Type) =
+    propsNames |> List.choose(fun propName -> 
+        let propInfo = targetType.GetProperty(propName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+        if propInfo <> null then
+            let propType = propInfo.PropertyType
+            let finalType = if isBuiltInType propType then propType else typeof<obj>
+            Some (propName, finalType)
+        else 
+            None
+    )
+
+let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
     let parameter = Expression.Parameter(typeof<'a>)
 
     let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode) (root: bool): Expression = 
@@ -26,39 +49,39 @@ let buildSelector<'a, 'b> (node: GraphQLNode) : Expression<Func<'a, 'b>> =
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 Expression.Property(param, property) :> Expression
             | ObjectNode(name, selections) -> 
-                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-
-                let nestedAccess = 
+                let access = 
                     match root with
-                       | true -> param
-                       | false -> Expression.Property(param, property)
+                        | true -> param
+                        | false -> 
+                            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                            Expression.Property(param, property)
 
-                let nestedType = nestedAccess.Type
+                let accessType = access.Type
 
-                let ctor = nestedType.GetConstructors().[0]
+                let propertiesNames = selections |> List.map (fun selection ->        
+                        match selection with
+                            | FieldNode(name, _) -> name
+                            | ObjectNode(name, _) -> name
+                    )
+
+                let properties = getPropertyTypes propertiesNames accessType
+
+                let anonType = createAnonymousType properties
+
+                let ctor = anonType.GetConstructors().[0]
 
                 let members = 
                     selections |> List.map (fun selection ->
-                        toExpression nestedType nestedAccess selection false
+                        toExpression accessType access selection false
                     )
 
                 Expression.New(ctor, members)
 
     let body = toExpression typeof<'a> parameter node true
-    Expression.Lambda<Func<'a, 'b>>(body, parameter)
+    Expression.Lambda<Func<'a, obj>>(body, parameter)
 
 type Phone = { Country: string; Number: string; }
 type User = { Id: int; Name: string; Phone: Phone }
 
-let selector = buildSelector<User, User> ast
-printfn "Selector: %A" selector
-
-//let toExpression<'a> (node: GraphQLNode): Expression = 
-//    match node with
-//        | FieldNode(name, args) -> 
-//            let property = typeof<'a>.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-//            let parameter = Expression.Parameter(typeof<'a>)
-//            Expression.Property(parameter, property) :> Expression
-//        | ObjectNode(name, selections) -> Expression.Empty() :> Expression
-
-//let expression = map (toExpression) userQuery
+let selector = buildSelector<User> ast
+printfn "\nSelector: %A" selector
