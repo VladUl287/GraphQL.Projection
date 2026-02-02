@@ -4,6 +4,11 @@ type GraphQLNode =
     | FieldNode of name: string * arguments: ArgumentNode list
     | ObjectNode of name: string * selections: GraphQLNode list
 
+    member this.Name =
+        match this with
+        | FieldNode(name, _) -> name
+        | ObjectNode(name, _) -> name
+
 and ArgumentNode = {
     Name: string
     Value: GraphQLValue

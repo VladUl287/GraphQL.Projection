@@ -58,11 +58,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
 
                 let accessType = access.Type
 
-                let propertiesNames = selections |> List.map (fun selection ->        
-                        match selection with
-                            | FieldNode(name, _) -> name
-                            | ObjectNode(name, _) -> name
-                    )
+                let propertiesNames = selections |> List.map (fun selection -> selection.Name)
 
                 let properties = getPropertyTypes propertiesNames accessType
 
