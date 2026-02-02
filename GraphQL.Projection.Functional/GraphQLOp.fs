@@ -15,7 +15,7 @@ type GraphQLNode =
 
    | FragmentSpread of 
        name: string * 
-       directives: DirectiveNode list
+       directives: DirectiveNode list //maybe spread on ast conversion step?
 
    member this.Name =
        match this with
@@ -41,6 +41,17 @@ and ValueNode =
     | EnumValue of value: string
     | ListValue of values: ValueNode list
     | ObjectValue of fields: (string * ValueNode) list
+
+type FragmentDefinitionNode = { 
+    name: string
+    typeCondition: string
+    directives: DirectiveNode list
+    selections: GraphQLNode list 
+}
+
+type DefinitionNode =
+    | FragmentDefinition of FragmentDefinitionNode
+    //| OperationDefinition of OperationDefinitionNode
 
 type GraphQLOp<'a> =
     | Field of name: string * arguments: ArgumentNode list * next: (GraphQLNode -> 'a)
