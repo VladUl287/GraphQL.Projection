@@ -1,28 +1,46 @@
 ﻿module GraphQLOp
 
 type GraphQLNode =
-    | FieldNode of name: string * arguments: ArgumentNode list
-    | ObjectNode of name: string * selections: GraphQLNode list
+   | FieldNode of name: string * arguments: ArgumentNode list
+        //alias: string option * 
+        //directives: DirectiveNode list * 
+        //selections: GraphQLNode list
+    
+   | ObjectNode of name: string * selections: GraphQLNode list
 
-    member this.Name =
-        match this with
-        | FieldNode(name, _) -> name
-        | ObjectNode(name, _) -> name
+   | InlineFragment of 
+      typeCondition: string option * 
+      directives: DirectiveNode list * 
+      selections: GraphQLNode list
+
+   | FragmentSpread of 
+       name: string * 
+       directives: DirectiveNode list
+
+   member this.Name =
+       match this with
+       | FieldNode(name, _) -> name
+       | ObjectNode(name, _) -> name
 
 and ArgumentNode = {
-    Name: string
-    Value: GraphQLValue
+    name: string
+    value: ValueNode
 }
 
-and GraphQLValue =
-    | StringValue of string
-    | IntValue of int
-    | FloatValue of float
-    | BooleanValue of bool
+and DirectiveNode = { 
+    name: string; 
+    arguments: ArgumentNode list 
+}
+
+and ValueNode =
+    | Variable of name: string
+    | IntValue of value: int
+    | StringValue of value: string
+    | BooleanValue of value: bool
     | NullValue
-    | VariableValue of name: string
-    | ListValue of GraphQLValue list
-    | ObjectValue of Map<string, GraphQLValue>
+    | EnumValue of value: string
+    | ListValue of values: ValueNode list
+    | ObjectValue of fields: (string * ValueNode) list
 
 type GraphQLOp<'a> =
     | Field of name: string * arguments: ArgumentNode list * next: (GraphQLNode -> 'a)
