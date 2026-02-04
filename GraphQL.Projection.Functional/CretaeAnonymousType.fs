@@ -23,18 +23,13 @@ let createAnonymousType(properties: (string * Type) list) =
     emptyIl.Emit(OpCodes.Ldarg_0)
     emptyIl.Emit(OpCodes.Call, typeof<obj>.GetConstructor([||]))
     emptyIl.Emit(OpCodes.Ret)
-    
-    let fields = ResizeArray<FieldBuilder>()
-    let ctorParams = ResizeArray<Type>()
-    
+        
     for (propName, propType) in properties do
         let field = typeBuilder.DefineField(
             "_" + propName,
             propType,
             FieldAttributes.Private
         )
-        fields.Add(field)
-        ctorParams.Add(propType)
         
         let property = typeBuilder.DefineProperty(
             propName,
@@ -70,21 +65,5 @@ let createAnonymousType(properties: (string * Type) list) =
         
         property.SetGetMethod(getter)
         property.SetSetMethod(setter)
-    
-    let ctor = typeBuilder.DefineConstructor(
-        MethodAttributes.Public,
-        CallingConventions.Standard,
-        ctorParams.ToArray()
-    )
-    let ctorIl = ctor.GetILGenerator()
-    ctorIl.Emit(OpCodes.Ldarg_0)
-    ctorIl.Emit(OpCodes.Call, typeof<obj>.GetConstructor([||]))
-    
-    for i = 0 to ctorParams.Count - 1 do
-        ctorIl.Emit(OpCodes.Ldarg_0)
-        ctorIl.Emit(OpCodes.Ldarg, i + 1)
-        ctorIl.Emit(OpCodes.Stfld, fields.[i])
-    
-    ctorIl.Emit(OpCodes.Ret)
-    
+        
     typeBuilder.CreateType()
