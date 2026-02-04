@@ -4,14 +4,16 @@ open System.Linq.Expressions
 open GraphQLOp
 open GraphQLOp.Operations
 open CretaeAnonymousType
+open System.Collections
+open System.Text.Json
 
 let userQuery = 
-    object' "user" [
-        field "id" []
-        field "name" []
-        object' "phone" [
-            field "country" []
-            field "number" []
+    field "user" [] None [] [
+        field "id" [] None [] []
+        field "name" [] (Some "tset") [] []
+        field "phone" [] None [] [
+            field "country" [] None [] []
+            field "number" [] None [] []
         ]
     ]
 
@@ -29,49 +31,84 @@ let isBuiltInType (typ: Type) =
     || typ = typeof<decimal>
     || typ = typeof<obj>
 
-let getPropertyTypes (propsNames: string list) (targetType: Type) =
-    propsNames |> List.choose(fun propName -> 
-        let propInfo = targetType.GetProperty(propName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-        if propInfo <> null then
-            let propType = propInfo.PropertyType
-            let finalType = if isBuiltInType propType then propType else typeof<obj>
-            Some (propName, finalType)
-        else 
-            None
-    )
+let rec isSubtypeOf (targetType: Type) (typeName: string) =
+    if targetType.Name = typeName then true
+    elif targetType.BaseType <> null then 
+        isSubtypeOf targetType.BaseType typeName
+    else
+        targetType.GetInterfaces()
+            |> Array.exists (fun iface -> 
+                if iface.Name = typeName then true
+                elif isSubtypeOf iface typeName then true
+                else false)
+
+let rec flattenFragments (selections: GraphQLNode list) (targetType: Type): GraphQLNode list = 
+    selections 
+        |> List.collect (fun selection ->
+            match selection with
+                | FieldNode _ -> [selection]
+                | InlineFragmentNode (typeCondition, _, selections) ->
+                    if isSubtypeOf targetType typeCondition.Value 
+                    then flattenFragments selections targetType
+                    else []
+            )
+        |> List.filter (function
+            | FieldNode _ -> true
+            | InlineFragmentNode _ -> false)
+
+let getPropertyTypes (selections: GraphQLNode list) (targetType: Type): (string * Type) list =
+    selections 
+        |> List.choose (fun node -> 
+            match node with
+            | FieldNode (name, _, alias, _, _) -> 
+                let property = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                if property <> null then
+                    let propertyType = property.PropertyType
+                    let finalType = if isBuiltInType propertyType then propertyType else typeof<obj>
+                    let fieldName = if alias.IsSome then alias.Value else name
+                    Some (fieldName, finalType)
+                else
+                    None
+            | _ -> None
+        )
 
 let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
     let parameter = Expression.Parameter(typeof<'a>)
 
     let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode) (root: bool): Expression = 
         match node with
-            | FieldNode(name, args) -> 
+            | FieldNode(name, _, _, _, selections) when List.isEmpty selections ->
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 Expression.Property(param, property) :> Expression
-            | ObjectNode(name, selections) -> 
-                let access = 
-                    match root with
-                        | true -> param
-                        | false -> 
-                            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                            Expression.Property(param, property)
-
-                let accessType = access.Type
-
-                let propertiesNames = selections |> List.map (fun selection -> selection.Name)
-
-                let properties = getPropertyTypes propertiesNames accessType
-
-                let anonType = createAnonymousType properties
-
-                let ctor = anonType.GetConstructors().[0]
-
-                let members = 
-                    selections |> List.map (fun selection ->
-                        toExpression accessType access selection false
-                    )
-
-                Expression.New(ctor, members)
+            | FieldNode(name, args, alias, directives, selections) -> 
+                if currentType.IsInstanceOfType(typeof<IEnumerable>) then 
+                    Expression.Empty()
+                else
+                    let access = 
+                        match root with
+                            | true -> param
+                            | false -> 
+                                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                                Expression.Property(param, property)
+                    
+                    let accessType = access.Type
+                    
+                    let flatSelections = flattenFragments selections accessType
+                            
+                    let properties = getPropertyTypes flatSelections accessType
+                    
+                    let anonType = createAnonymousType properties
+                    
+                    let ctor = anonType.GetConstructors().[0]
+                    
+                    let members = 
+                        selections |> List.map (fun selection ->
+                            toExpression accessType access selection false
+                        )
+                    
+                    Expression.New(ctor, members)
+            | InlineFragmentNode(_, _, _) -> 
+               Expression.Empty()
 
     let body = toExpression typeof<'a> parameter node true
     Expression.Lambda<Func<'a, obj>>(body, parameter)
@@ -81,3 +118,20 @@ type User = { Id: int; Name: string; Phone: Phone }
 
 let selector = buildSelector<User> ast
 printfn "\nSelector: %A" selector
+
+let phone = { Country = "+1"; Number = "555-1234" }
+
+let user = { 
+    Id = 1
+    Name = "John Doe" 
+    Phone = phone 
+}
+
+let delegat = selector.Compile()
+let obj = delegat.Invoke user 
+
+let userJson = JsonSerializer.Serialize(user)
+printfn "User json: %s" userJson
+
+let objJson = JsonSerializer.Serialize(obj)
+printfn "Obj json: %s" objJson

@@ -4,6 +4,24 @@ open System
 open System.Reflection.Emit
 open System.Reflection
 
+let createDynamicType() =
+    let assemblyName = AssemblyName("DynamicTypes")
+    let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run)
+    let moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule")
+    let typeBuilder = moduleBuilder.DefineType("DynamicResult", TypeAttributes.Public)
+    
+    typeBuilder.DefineField("Id", typeof<int>, FieldAttributes.Public) |> ignore
+    typeBuilder.DefineField("Name", typeof<string>, FieldAttributes.Public) |> ignore
+    
+    let phoneTypeBuilder = moduleBuilder.DefineType("DynamicPhone", TypeAttributes.Public)
+    phoneTypeBuilder.DefineField("Country", typeof<string>, FieldAttributes.Public) |> ignore
+    phoneTypeBuilder.DefineField("Number", typeof<string>, FieldAttributes.Public) |> ignore
+    let phoneType = phoneTypeBuilder.CreateType()
+    
+    typeBuilder.DefineField("Phone", phoneType, FieldAttributes.Public) |> ignore
+    
+    typeBuilder.CreateType()
+
 let createAnonymousType (properties: (string * Type) list) : Type =
     let assemblyName = AssemblyName("DynamicTypes")
     let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run)

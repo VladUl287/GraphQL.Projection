@@ -1,26 +1,28 @@
 ﻿module GraphQLOp
 
 type GraphQLNode =
-   | FieldNode of name: string * arguments: ArgumentNode list
-        //alias: string option * 
-        //directives: DirectiveNode list * 
-        //selections: GraphQLNode list
+    | FieldNode of 
+         name: string * 
+         arguments: ArgumentNode list *
+         alias: string option * 
+         directives: DirectiveNode list * 
+         selections: GraphQLNode list
     
-   | ObjectNode of name: string * selections: GraphQLNode list
+    | InlineFragmentNode of 
+         typeCondition: string option *
+         directives: DirectiveNode list * 
+         selections: GraphQLNode list
 
-   | InlineFragment of 
-      typeCondition: string option * 
-      directives: DirectiveNode list * 
-      selections: GraphQLNode list
+    //| FragmentSpread of 
+    //   name: string * 
+    //   directives: DirectiveNode list
 
-   | FragmentSpread of 
-       name: string * 
-       directives: DirectiveNode list //maybe spread on ast conversion step?
+    //| FragmentDefinition of 
+    //    name: string * 
+    //    typeCondition: string * 
+    //    directives: DirectiveNode list * 
+    //    selectionSet: GraphQLNode list
 
-   member this.Name =
-       match this with
-       | FieldNode(name, _) -> name
-       | ObjectNode(name, _) -> name
 
 and ArgumentNode = {
     name: string
@@ -42,37 +44,38 @@ and ValueNode =
     | ListValue of values: ValueNode list
     | ObjectValue of fields: (string * ValueNode) list
 
-type FragmentDefinitionNode = { 
-    name: string
-    typeCondition: string
-    directives: DirectiveNode list
-    selections: GraphQLNode list 
-}
-
-type DefinitionNode =
-    | FragmentDefinition of FragmentDefinitionNode
-    //| OperationDefinition of OperationDefinitionNode
-
 type GraphQLOp<'a> =
-    | Field of name: string * arguments: ArgumentNode list * next: (GraphQLNode -> 'a)
-    | Object of name: string * selections: GraphQLOp<'a> list * next: (GraphQLNode -> 'a)
+    | Field of 
+        name: string * 
+        arguments: ArgumentNode list * 
+        alias: string option * 
+        directives: DirectiveNode list * 
+        selections: GraphQLOp<'a> list * 
+        next: (GraphQLNode -> 'a)
+    | InlineFragment of 
+        typeCondition: string option * 
+        directives: DirectiveNode list * 
+        selections: GraphQLOp<'a> list * 
+        next: (GraphQLNode -> 'a)
 
 module Operations =
     let rec map (f: 'a -> 'b) (op: GraphQLOp<'a>) : GraphQLOp<'b> =
         match op with
-        | Field(name, args, next) -> Field(name, args, next >> f)
-        | Object(name, selections, next) -> Object(name, List.map (map f) selections, next >> f)
+        | Field(name, args, alias, directives, selections, next) -> Field(name, args, alias, directives, List.map (map f) selections, next >> f)
+        | InlineFragment(typeCondition, directives, selections, next) -> InlineFragment(typeCondition, directives, List.map (map f) selections, next >> f)
     
-    let field name args = 
-        Field(name, args, fun node -> node)
+    let field name args alias directives selections = 
+        Field(name, args, alias, directives, selections, fun node -> node)
     
-    let object' name selections = 
-        Object(name, selections, fun node -> node)
+    let inlineFragment' typeCondition directives selections = 
+        InlineFragment(typeCondition, directives, selections, fun node -> node)
     
     let rec interpret (op: GraphQLOp<GraphQLNode>) : GraphQLNode =
         match op with
-        | Field(name, args, next) -> next (FieldNode(name, args))
-        | Object(name, selections, next) -> 
+        | Field(name, args, alias, directives, selections, next) -> 
             let nodes = selections |> List.map interpret
-            next (ObjectNode(name, nodes))
+            next (FieldNode(name, args, alias, directives, nodes))
+        | InlineFragment(typeCondition, directives, selections, next) -> 
+            let nodes = selections |> List.map interpret
+            next (InlineFragmentNode(typeCondition, directives, nodes))
     
