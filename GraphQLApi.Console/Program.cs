@@ -1,43 +1,39 @@
-﻿using GraphQL.Projection;
-using GraphQLApi.Console;
-using GraphQLParser;
-using GraphQLParser.AST;
-using System.Linq.Expressions;
-using System.Reflection;
+﻿using GraphQLApi.Console;
+using GraphQLApi.Console.Data;
+using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
+using static GraphQLOp;
 
-var query = """
-    query {
-      search {
-        id
-      }
-    }
-    """;
+var userQuery =
+    Operations.field("user", [], default, [], [
+        Operations.field("id", [], default, [], [])
+    ]);
 
-var document = Parser.Parse(query);
+var ast = Operations.interpret(userQuery);
 
-GraphQLSelectionSet? qLSelectionSet = null;
-GraphQLField? qlField = null;
+var selector = QueryBuilder.buildSelector<User>(ast);
 
-foreach (var definition in document.Definitions)
+Console.WriteLine(selector);
+
+var user = new User
 {
-    if (definition is { Kind: ASTNodeKind.OperationDefinition } and GraphQLOperationDefinition operation)
-    {
-        foreach (var selection in operation.SelectionSet.Selections)
-        {
-            if (selection is { Kind: ASTNodeKind.Field } and GraphQLField field)
-            {
-                qlField = field;
-                qLSelectionSet = field.SelectionSet;
-            }
-        }
-        break;
-    }
+    Id = 1,
+    Name = "test"
+};
+
+var com = selector.Compile();
+var obj = com.Invoke(user);
+
+Console.WriteLine(JsonSerializer.Serialize(user));
+Console.WriteLine(JsonSerializer.Serialize(obj));
+
+var query = new AppDatabaseContext()
+    .Users
+    .Select(selector);
+
+Console.WriteLine(query.ToQueryString());
+
+await foreach (var item in query.AsAsyncEnumerable())
+{
+    Console.WriteLine(JsonSerializer.Serialize(item));
 }
-
-var parameter = Expression.Parameter(typeof(UserExt));
-var property = typeof(UserExt)
-    .GetProperty("test", BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
-var expression = Expression.Property(parameter, property);
-
-ArgumentNullException.ThrowIfNull(qlField);
-ArgumentNullException.ThrowIfNull(qLSelectionSet);

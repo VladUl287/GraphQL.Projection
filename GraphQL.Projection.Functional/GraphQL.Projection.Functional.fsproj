@@ -6,7 +6,9 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="CretaeAnonymousType.fs" />
     <Compile Include="GraphQLOp.fs" />
+    <Compile Include="SelectorBuilderModule.fs" />
   </ItemGroup>
 
 </Project>
