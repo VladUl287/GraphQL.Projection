@@ -85,7 +85,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let properties = getPropertyTypes flatSelections accessType
                     
                     //let anonType = createAnonymousType properties
-                    let anonType = createJsonSerializableType properties
+                    let anonType = createAnonymousType properties
                     
                     let ctor = anonType.GetConstructors().[0]
                     

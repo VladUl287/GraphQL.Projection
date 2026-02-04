@@ -4,55 +4,7 @@ open System
 open System.Reflection.Emit
 open System.Reflection
 
-let createAnonymousType (properties: (string * Type) list) : Type =
-    let assemblyName = AssemblyName("DynamicTypes")
-    let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run)
-    let moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule")
-
-    let typeBuilder = moduleBuilder.DefineType("AnonymousType", TypeAttributes.Public ||| TypeAttributes.Class ||| TypeAttributes.Sealed)
-    
-    let fieldBuilders = System.Collections.Generic.Dictionary<string, FieldBuilder>()
-
-    properties |> List.iter (fun (name, typ) ->
-        let fieldBuilder = typeBuilder.DefineField("_" + name, typ, FieldAttributes.Private)
-        let propBuilder = typeBuilder.DefineProperty(name, PropertyAttributes.HasDefault, typ, null)
-        fieldBuilders.[name] <- fieldBuilder
-
-        // Getter
-        let getter = typeBuilder.DefineMethod("get_" + name, 
-            MethodAttributes.Public ||| MethodAttributes.SpecialName ||| MethodAttributes.HideBySig,
-            typ, Type.EmptyTypes)
-        let getterIL = getter.GetILGenerator()
-        getterIL.Emit(OpCodes.Ldarg_0)
-        getterIL.Emit(OpCodes.Ldfld, fieldBuilder)
-        getterIL.Emit(OpCodes.Ret)
-        propBuilder.SetGetMethod(getter)
-    )
-
-    // Constructor
-    let paramTypes = [| for (_, t) in properties -> t |]
-    let ctor = typeBuilder.DefineConstructor(
-        MethodAttributes.Public, 
-        CallingConventions.Standard, 
-        paramTypes)
-
-    let ctorIL = ctor.GetILGenerator()
-    ctorIL.Emit(OpCodes.Ldarg_0)
-    ctorIL.Emit(OpCodes.Call, typeof<obj>.GetConstructor(Type.EmptyTypes))
-    
-    for i = 0 to properties.Length - 1 do
-        let (propName, _) = properties.[i]
-        let fieldBuilder = fieldBuilders.[propName]
-
-        ctorIL.Emit(OpCodes.Ldarg_0)
-        ctorIL.Emit(OpCodes.Ldarg, i + 1)
-        ctorIL.Emit(OpCodes.Stfld, fieldBuilder)
-    
-    ctorIL.Emit(OpCodes.Ret)
-    
-    typeBuilder.CreateType()
-        
-let createJsonSerializableType(properties: (string * Type) list) =
+let createAnonymousType(properties: (string * Type) list) =
     let assemblyName = AssemblyName("DynamicTypes")
     let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect)
     let moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule")
@@ -72,12 +24,10 @@ let createJsonSerializableType(properties: (string * Type) list) =
     emptyIl.Emit(OpCodes.Call, typeof<obj>.GetConstructor([||]))
     emptyIl.Emit(OpCodes.Ret)
     
-    // Add properties with public getters/setters (C# style)
     let fields = ResizeArray<FieldBuilder>()
     let ctorParams = ResizeArray<Type>()
     
     for (propName, propType) in properties do
-        // Define backing field
         let field = typeBuilder.DefineField(
             "_" + propName,
             propType,
@@ -86,7 +36,6 @@ let createJsonSerializableType(properties: (string * Type) list) =
         fields.Add(field)
         ctorParams.Add(propType)
         
-        // Define property
         let property = typeBuilder.DefineProperty(
             propName,
             PropertyAttributes.HasDefault,
@@ -122,7 +71,6 @@ let createJsonSerializableType(properties: (string * Type) list) =
         property.SetGetMethod(getter)
         property.SetSetMethod(setter)
     
-    // Add parameterized constructor
     let ctor = typeBuilder.DefineConstructor(
         MethodAttributes.Public,
         CallingConventions.Standard,
@@ -139,6 +87,4 @@ let createJsonSerializableType(properties: (string * Type) list) =
     
     ctorIl.Emit(OpCodes.Ret)
     
-    // FINISH TYPE
-    let dynamicType = typeBuilder.CreateType()
-    dynamicType
+    typeBuilder.CreateType()
