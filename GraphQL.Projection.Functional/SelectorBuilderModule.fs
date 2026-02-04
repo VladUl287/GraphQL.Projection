@@ -84,22 +84,20 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                             
                     let properties = getPropertyTypes flatSelections accessType
                     
-                    //let anonType = createAnonymousType properties
                     let anonType = createAnonymousType properties
                     
                     let ctor = anonType.GetConstructors().[0]
                     
                     let members = 
-                        selections |> List.map (fun selection ->
+                        flatSelections 
+                        |> List.map (fun selection ->
                             toExpression accessType access selection false
                         )
-                    
-                    //Expression.New(ctor, members)
-
+                                        
                     let bindings = 
                         members
-                        |> List.map (fun exp ->
-                            Expression.Bind(anonType.GetProperties()[0], exp) :> MemberBinding
+                        |> List.mapi (fun index exp ->
+                            Expression.Bind(anonType.GetProperties()[index], exp) :> MemberBinding
                         )
 
                     Expression.MemberInit(Expression.New(ctor), bindings) :> Expression

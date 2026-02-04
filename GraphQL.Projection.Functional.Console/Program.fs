@@ -5,11 +5,11 @@ open System.Text.Json
 let userQuery = 
     field "user" [] None [] [
         field "id" [] None [] []
-        //field "name" [] (Some "tset") [] []
-        //field "phone" [] None [] [
-        //    field "country" [] None [] []
-        //    field "number" [] None [] []
-        //]
+        field "name" [] (Some "tset") [] []
+        field "phone" [] None [] [
+            field "country" [] None [] []
+            field "number" [] None [] []
+        ]
     ]
 
 let ast = interpret userQuery
