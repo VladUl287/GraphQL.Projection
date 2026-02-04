@@ -68,7 +68,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 Expression.Property(param, property) :> Expression
             | FieldNode(name, args, alias, directives, selections) -> 
-                if currentType.IsInstanceOfType(typeof<IEnumerable>) then 
+                if currentType.IsAssignableTo(typeof<IEnumerable>) then 
                     Expression.Empty()
                 else
                     let access = 
