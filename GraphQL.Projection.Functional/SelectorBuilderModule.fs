@@ -1,7 +1,6 @@
 ﻿module QueryBuilder
 
 open System
-open GraphQLOp
 open System.Reflection
 open System.Linq.Expressions
 open System.Collections
@@ -35,20 +34,6 @@ let rec isSubtypeOf (targetType: Type) (typeName: string) =
                 if iface.Name = typeName then true
                 elif isSubtypeOf iface typeName then true
                 else false)
-
-let rec flattenFragments (selections: GraphQLNode list) (targetType: Type): GraphQLNode list = 
-    selections 
-        |> List.collect (fun selection ->
-            match selection with
-                | FieldNode _ -> [selection]
-                | InlineFragmentNode (typeCondition, _, selections) ->
-                    if isSubtypeOf targetType typeCondition.Value 
-                    then flattenFragments selections targetType
-                    else []
-            )
-        |> List.filter (function
-            | FieldNode _ -> true
-            | InlineFragmentNode _ -> false)
 
 let getPropertyTypes (selections: GraphQLNode list) (targetType: Type): (string * Type) list =
     selections 
@@ -92,7 +77,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let collectionType = accessType
                     let elementType = (getElementType accessType).Value
 
-                    let flatSelections = flattenFragments selections elementType
+                    let flatSelections = flattenFragments selections elementType TypeSystem.defaultInspector
                             
                     let properties = getPropertyTypes flatSelections elementType
                     
@@ -128,7 +113,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
 
                     Expression.Call(genericSelectMethod, access, lambda)
                 else
-                    let flatSelections = flattenFragments selections accessType
+                    let flatSelections = flattenFragments selections accessType TypeSystem.defaultInspector
                             
                     let properties = getPropertyTypes flatSelections accessType
                     

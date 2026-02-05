@@ -72,3 +72,17 @@ let getPropertiesTypes (inspector: TypeInspector) (selections: GraphQLNode list)
                     None
             | _ -> None
         )
+
+let rec flattenFragments (selections: GraphQLNode list) (targetType: Type) (inspector: TypeInspector): GraphQLNode list = 
+    selections 
+        |> List.collect (fun selection ->
+            match selection with
+                | FieldNode _ -> [selection]
+                | InlineFragmentNode (typeCondition, _, selections) ->
+                    if inspector.IsSubtypeOf targetType typeCondition.Value 
+                    then flattenFragments selections targetType inspector
+                    else []
+            )
+        |> List.filter (function
+            | FieldNode _ -> true
+            | InlineFragmentNode _ -> false)
