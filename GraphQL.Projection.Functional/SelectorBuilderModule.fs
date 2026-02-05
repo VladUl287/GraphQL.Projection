@@ -69,15 +69,6 @@ let getPropertyTypes (selections: GraphQLNode list) (targetType: Type): (string 
             | _ -> None
         )
 
-//let getSelectMethod (sourceType: Type) (resultType: Type) =
-//                       typeof<System.Linq.Enumerable>.GetMethods()
-//                       |> Array.find (fun m ->
-//                           m.Name = "Select" &&
-//                           m.GetParameters().Length = 2 && 
-//                           m.GetParameters()[0].ParameterType = typeof<System.Collections.Generic.IEnumerable<_>>.MakeGenericType([|sourceType|]) &&
-//                           m.GetParameters()[1].ParameterType.GetGenericTypeDefinition() = typeof<System.Func<_,_>>)
-//                       |> fun m -> m.MakeGenericMethod([|sourceType; resultType|])
-
 let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
     let parameter = Expression.Parameter(typeof<'a>)
 
