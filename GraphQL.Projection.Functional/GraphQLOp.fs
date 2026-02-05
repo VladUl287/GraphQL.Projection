@@ -1,48 +1,6 @@
 ﻿module GraphQLOp
 
-type GraphQLNode =
-    | FieldNode of 
-         name: string * 
-         arguments: ArgumentNode list *
-         alias: string option * 
-         directives: DirectiveNode list * 
-         selections: GraphQLNode list
-    
-    | InlineFragmentNode of 
-         typeCondition: string option *
-         directives: DirectiveNode list * 
-         selections: GraphQLNode list
-
-    //| FragmentSpread of 
-    //   name: string * 
-    //   directives: DirectiveNode list
-
-    //| FragmentDefinition of 
-    //    name: string * 
-    //    typeCondition: string * 
-    //    directives: DirectiveNode list * 
-    //    selectionSet: GraphQLNode list
-
-
-and ArgumentNode = {
-    name: string
-    value: ValueNode
-}
-
-and DirectiveNode = { 
-    name: string; 
-    arguments: ArgumentNode list 
-}
-
-and ValueNode =
-    | Variable of name: string
-    | IntValue of value: int
-    | StringValue of value: string
-    | BooleanValue of value: bool
-    | NullValue
-    | EnumValue of value: string
-    | ListValue of values: ValueNode list
-    | ObjectValue of fields: (string * ValueNode) list
+open GraphQLProcessing
 
 type GraphQLOp<'a> =
     | Field of 

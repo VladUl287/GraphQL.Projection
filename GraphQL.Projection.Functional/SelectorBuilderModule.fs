@@ -4,9 +4,10 @@ open System
 open GraphQLOp
 open System.Reflection
 open System.Linq.Expressions
-open CretaeAnonymousType
 open System.Collections
 open System.Collections.Generic
+open GraphQLProcessing
+open AnonymousTypeBuilder
 
 let isPrimitive (typ: Type) = typ.IsPrimitive || typ = typeof<string>
 let isCollection (typ: Type) = typ.IsAssignableTo(typeof<IEnumerable>)
