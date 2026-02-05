@@ -6,17 +6,23 @@ open System.Reflection
 open System.Linq.Expressions
 open CretaeAnonymousType
 open System.Collections
+open System.Collections.Generic
 
-let isBuiltInType (typ: Type) =
-    typ.Namespace = "System" && not typ.IsClass
-    || typ.IsPrimitive 
-    || typ = typeof<string>
-    || typ = typeof<DateTime>
-    || typ = typeof<DateTimeOffset>
-    || typ = typeof<TimeSpan>
-    || typ = typeof<Guid>
-    || typ = typeof<decimal>
-    || typ = typeof<obj>
+let isPrimitive (typ: Type) = typ.IsPrimitive || typ = typeof<string>
+let isCollection (typ: Type) = typ.IsAssignableTo(typeof<IEnumerable>)
+let getElementType (typ: Type) =
+    let a = typ.GetGenericTypeDefinition();
+    match typ with
+    | t when t.IsArray -> 
+        Some (t.GetElementType())
+    | t ->
+        t.GetInterfaces()
+        |> Array.tryPick (fun i ->
+            if i.IsGenericType && 
+               i.GetGenericTypeDefinition() = typedefof<IEnumerable<_>> then
+               Some (i.GetGenericArguments()[0])
+            else
+               None)
 
 let rec isSubtypeOf (targetType: Type) (typeName: string) =
     if targetType.Name = typeName then true
@@ -51,13 +57,26 @@ let getPropertyTypes (selections: GraphQLNode list) (targetType: Type): (string 
                 let property = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 if property <> null then
                     let propertyType = property.PropertyType
-                    let finalType = if isBuiltInType propertyType then propertyType else typeof<obj>
+                    let finalType = 
+                        match propertyType with
+                            | t when isPrimitive t -> t
+                            | t when isCollection t -> typeof<IEnumerable>
+                            | _ -> typeof<obj>
                     let fieldName = if alias.IsSome then alias.Value else property.Name
                     Some (fieldName, finalType)
                 else
                     None
             | _ -> None
         )
+
+//let getSelectMethod (sourceType: Type) (resultType: Type) =
+//                       typeof<System.Linq.Enumerable>.GetMethods()
+//                       |> Array.find (fun m ->
+//                           m.Name = "Select" &&
+//                           m.GetParameters().Length = 2 && 
+//                           m.GetParameters()[0].ParameterType = typeof<System.Collections.Generic.IEnumerable<_>>.MakeGenericType([|sourceType|]) &&
+//                           m.GetParameters()[1].ParameterType.GetGenericTypeDefinition() = typeof<System.Func<_,_>>)
+//                       |> fun m -> m.MakeGenericMethod([|sourceType; resultType|])
 
 let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
     let parameter = Expression.Parameter(typeof<'a>)
@@ -68,18 +87,53 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 Expression.Property(param, property) :> Expression
             | FieldNode(name, args, alias, directives, selections) -> 
-                if currentType.IsAssignableTo(typeof<IEnumerable>) then 
-                    Expression.Empty()
+                let access = 
+                    match root with
+                        | true -> param
+                        | false -> 
+                            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                            Expression.Property(param, property)
+                
+                let accessType = access.Type
+                    
+                if isCollection accessType then 
+                    let collectionType = accessType
+                    let elementType = (getElementType accessType).Value
+
+                    let flatSelections = flattenFragments selections elementType
+                            
+                    let properties = getPropertyTypes flatSelections elementType
+                    
+                    let anonType = createAnonymousType properties
+                    
+                    let ctor = anonType.GetConstructors().[0]
+                    
+                    let subParameter = Expression.Parameter(elementType)
+
+                    let members = 
+                        flatSelections 
+                        |> List.map (fun selection ->
+                            toExpression elementType subParameter selection false
+                        )
+                                        
+                    let bindings = 
+                        members
+                        |> List.mapi (fun index exp ->
+                            Expression.Bind(anonType.GetProperties()[index], exp) :> MemberBinding
+                        )
+
+                    let memberInit = Expression.MemberInit(Expression.New(ctor), bindings)
+
+                    let selectMethod = 
+                        typeof<System.Linq.Enumerable>.GetMethods()
+                        |> Array.find (fun m -> 
+                            m.Name = "Select" && 
+                            m.GetParameters().Length = 2)
+                    
+                    let lambda = Expression.Lambda(memberInit, subParameter)
+
+                    Expression.Call(selectMethod, access, lambda)
                 else
-                    let access = 
-                        match root with
-                            | true -> param
-                            | false -> 
-                                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                                Expression.Property(param, property)
-                    
-                    let accessType = access.Type
-                    
                     let flatSelections = flattenFragments selections accessType
                             
                     let properties = getPropertyTypes flatSelections accessType
