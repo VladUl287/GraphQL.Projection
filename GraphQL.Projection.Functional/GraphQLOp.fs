@@ -1,6 +1,8 @@
 ﻿module GraphQLOp
 
 open GraphQLProcessing
+open TypeSystem
+open System
 
 type GraphQLOp<'a> =
     | Field of 
@@ -36,4 +38,5 @@ module Operations =
         | InlineFragment(typeCondition, directives, selections, next) -> 
             let nodes = selections |> List.map interpret
             next (InlineFragmentNode(typeCondition, directives, nodes))
+
     

@@ -2,6 +2,7 @@
 open QueryBuilder
 open System.Text.Json
 open System.Linq
+open GraphQLProcessing
 
 let userQuery = 
     field "user" [] None [] [
@@ -19,12 +20,15 @@ let userQuery =
         ]
     ]
 
-let ast = interpret userQuery
-printfn "AST: %A" ast
-
 type Achievement = { Id: int; Name: string; Description: string; }
 type Phone = { Country: string; Number: string; }
 type User = { Id: int; Name: string; Phone: Phone; Languages: string list; Achievements: Achievement list }
+
+let flattenCarrier = flattenNode typeof<User> TypeSystem.defaultInspector
+let test = userQuery |> map(flattenCarrier)
+
+let ast = interpret userQuery
+printfn "AST: %A" ast
 
 let selector = buildSelector<User> ast
 printfn "\nSelector: %A" selector

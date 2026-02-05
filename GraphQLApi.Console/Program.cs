@@ -11,6 +11,8 @@ var userQuery =
 
 var ast = Operations.interpret(userQuery);
 
+var flattenedOperations = GraphQLProcessing.flattenFragments(ast, typeof(User), TypeSystem.defaultInspector);
+
 var selector = QueryBuilder.buildSelector<User>(ast);
 
 Console.WriteLine(selector);

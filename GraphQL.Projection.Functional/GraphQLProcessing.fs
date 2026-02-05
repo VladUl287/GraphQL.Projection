@@ -73,6 +73,56 @@ let getPropertiesTypes (inspector: TypeInspector) (selections: GraphQLNode list)
             | _ -> None
         )
 
+let rec flattenNodes (targetType: Type) (inspector: TypeInspector) (node: GraphQLNode): GraphQLNode = 
+    match node with
+        | FieldNode(_, _, _, _, fieldSelections) as primitiveField when List.isEmpty fieldSelections -> primitiveField
+        | FieldNode(name, args, alias, directives, fieldSelections) -> 
+            let prop = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+            let propType = prop.PropertyType
+            let flattenedSelections = 
+                fieldSelections 
+                    |> List.map (fun selection ->
+                        flattenNodes propType inspector selection
+                    )
+            FieldNode(name, args, alias, directives, flattenedSelections)
+        | InlineFragmentNode (typeCondition, _, fragmentSelections) as fragNode ->
+            if inspector.IsSubtypeOf targetType typeCondition.Value 
+            then 
+                let flattenedSelections = 
+                    fragmentSelections 
+                        |> List.map (fun selection ->
+                            flattenNodes targetType inspector selection
+                        )
+                InlineFragmentNode(typeCondition, )
+            else
+                fragNode
+
+let rec flattenNodes (targetType: Type) (inspector: TypeInspector) (node: GraphQLNode): GraphQLNode list = 
+    match node with
+        | FieldNode(_, _, _, _, fieldSelections) as primitiveField when List.isEmpty fieldSelections -> [primitiveField]
+        | FieldNode(name, args, alias, directives, fieldSelections) -> 
+            let prop = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+            let propType = prop.PropertyType
+            
+            let flattenedSelections = 
+                fieldSelections 
+                    |> List.collect (flattenNodes propType inspector)
+            
+            [FieldNode(name, args, alias, directives, flattenedSelections)]
+        | InlineFragmentNode(typeCondition, directives, fragmentSelections) ->
+            if inspector.IsSubtypeOf targetType typeCondition.Value then
+                fragmentSelections 
+                    |> List.collect (flattenNodes targetType inspector)
+            else
+                []
+ 
+let flattenNode (targetType: Type) (inspector: TypeInspector) (node: GraphQLNode): GraphQLNode = 
+    let flattened = flattenNodes targetType inspector node
+    match flattened with
+        | [single] -> single
+        | [] -> FieldNode("__empty", [], None, [], [])
+        | multiple -> FieldNode("__container", [], None, [], multiple)
+
 let rec flattenFragments (selections: GraphQLNode list) (targetType: Type) (inspector: TypeInspector): GraphQLNode list = 
     selections 
         |> List.collect (fun selection ->
