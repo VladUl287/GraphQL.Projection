@@ -129,10 +129,12 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                         |> Array.find (fun m -> 
                             m.Name = "Select" && 
                             m.GetParameters().Length = 2)
-                    
+
+                    let genericSelectMethod = selectMethod.MakeGenericMethod(elementType, memberInit.Type)
+
                     let lambda = Expression.Lambda(memberInit, subParameter)
 
-                    Expression.Call(selectMethod, access, lambda)
+                    Expression.Call(genericSelectMethod, access, lambda)
                 else
                     let flatSelections = flattenFragments selections accessType
                             

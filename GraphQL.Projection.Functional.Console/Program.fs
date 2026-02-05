@@ -5,17 +5,17 @@ open System.Linq
 
 let userQuery = 
     field "user" [] None [] [
-        //field "id" [] None [] []
-        //field "name" [] (Some "tset") [] []
-        //field "phone" [] None [] [
-        //    field "country" [] None [] []
-        //    field "number" [] None [] []
-        //]
-        //field "languages" [] None [] []
+        field "id" [] None [] []
+        field "name" [] (Some "tset") [] []
+        field "phone" [] None [] [
+            field "country" [] None [] []
+            field "number" [] None [] []
+        ]
+        field "languages" [] None [] []
         field "achievements" [] None [] [
             field "id" [] None [] []
             field "name" [] None [] []
-            //field "description" [] (Some "desc") [] []
+            field "description" [] (Some "desc") [] []
         ]
     ]
 
@@ -46,7 +46,7 @@ let delegat = selector.Compile()
 let obj = delegat.Invoke user 
 
 let userJson = JsonSerializer.Serialize(user)
-printfn "User json: %s" userJson
+printfn "\nUser json: %s" userJson
 
 let objJson = JsonSerializer.Serialize(obj)
-printfn "Obj json: %s" objJson
+printfn "\nObj json: %s" objJson
