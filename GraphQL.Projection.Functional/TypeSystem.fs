@@ -36,9 +36,6 @@
             | t when t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<IEnumerable<_>> -> 
                 t.GetGenericArguments() 
                     |> Array.tryItem 0
-            | t when t.IsGenericType && t.GetGenericTypeDefinition() = typeof<Nullable<_>> ->
-                t.GetGenericArguments() 
-                    |> Array.tryPick getElementType
             | t ->
                 t.GetInterfaces() 
                     |> Array.tryPick getElementType
