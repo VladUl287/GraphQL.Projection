@@ -28,6 +28,24 @@ type GraphQLNode =
     //    directives: DirectiveNode list * 
     //    selectionSet: GraphQLNode list
 
+    //| OperationDefinitionNode of
+    //    operationType: OperationType *
+    //    name: string option *
+    //    variableDefinitions: VariableDefinitionNode list * 
+    //    directives: DirectiveNode list * 
+    //    selections: GraphQLNode list
+
+//and OperationType =
+//    | Query
+//    | Mutation
+//    | Subscription
+
+//and VariableDefinitionNode = {
+//    Name: string
+//    Type: ValueNode
+//    DefaultValue: ArgumentNode option
+//}
+
 and ArgumentNode = {
     name: string
     value: ValueNode
