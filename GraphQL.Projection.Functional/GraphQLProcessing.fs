@@ -77,12 +77,13 @@ let rec flattenFragments (selections: GraphQLNode list) (targetType: Type) (insp
     selections 
         |> List.collect (fun selection ->
             match selection with
-                | FieldNode _ -> [selection]
-                | InlineFragmentNode (typeCondition, _, selections) ->
+                | FieldNode(_, _, _, _, fieldSelections) when List.isEmpty fieldSelections -> [selection]
+                | FieldNode(name, _, _, _, fieldSelections) -> 
+                    let prop = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                    let propType = prop.PropertyType
+                    flattenFragments fieldSelections propType inspector
+                | InlineFragmentNode (typeCondition, _, fragmentSelections) ->
                     if inspector.IsSubtypeOf targetType typeCondition.Value 
-                    then flattenFragments selections targetType inspector
+                    then flattenFragments fragmentSelections targetType inspector
                     else []
             )
-        |> List.filter (function
-            | FieldNode _ -> true
-            | InlineFragmentNode _ -> false)
