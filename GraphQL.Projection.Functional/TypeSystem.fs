@@ -34,10 +34,10 @@
             match typ with
             | t when t.IsArray -> Some (t.GetElementType())
             | t when t.IsGenericType && t.GetGenericTypeDefinition() = typedefof<IEnumerable<_>> -> 
-                typ.GetGenericArguments() 
+                t.GetGenericArguments() 
                     |> Array.tryItem 0
-            | t when typ.IsGenericType && typ.GetGenericTypeDefinition() = typeof<Nullable<_>> ->
-                typ.GetGenericArguments() 
+            | t when t.IsGenericType && t.GetGenericTypeDefinition() = typeof<Nullable<_>> ->
+                t.GetGenericArguments() 
                     |> Array.tryPick getElementType
             | t ->
                 t.GetInterfaces() 
