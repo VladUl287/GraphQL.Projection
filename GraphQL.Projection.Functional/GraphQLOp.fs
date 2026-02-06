@@ -40,6 +40,30 @@ module Operations =
             let nodes = selections |> List.map interpret
             next (InlineFragmentNode(typeCondition, directives, nodes))
 
+    let rec pruneDirectives (queryRoot: GraphQLOp<'a>) (op: GraphQLOp<'a>): GraphQLOp<'a> =
+
+        let getValue (queryRoot: GraphQLOp<'a>) (node: DirectiveNode) =
+            
+            1
+
+        let rec prune (selections: GraphQLOp<'a> list): GraphQLOp<'a> list =
+           selections 
+           |> List.collect (fun selection ->
+               let directives = 
+                    match selection with
+                    | Field(_, _, _, directives, _, _) -> directives
+                    | InlineFragment(_, directives, _, _) -> directives
+                    |> List.filter(fun directive ->
+                        ["@include"; "@skip"] 
+                        |> List.contains directive.name
+                    )
+               []
+           )
+
+        match op with
+        | Field(_, _, _, directives, _, _) as field when directives |> List.isEmpty -> field
+        | other -> other
+
     let rec flatten (targetType: Type) (inspector: TypeInspector) (op: GraphQLOp<'a>): GraphQLOp<'a> =
 
         let rec flattenSelections currentType (selections: GraphQLOp<'a> list) =
