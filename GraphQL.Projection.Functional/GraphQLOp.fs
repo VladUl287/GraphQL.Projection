@@ -59,7 +59,6 @@ module Operations =
             )
 
         match op with
-        | Field(_, _, _, _, selections, _)  as primitiveField when List.isEmpty selections -> primitiveField
         | Field(name, args, alias, directives, selections, next) ->
             let prop = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
             let propType = if prop <> null then prop.PropertyType else targetType

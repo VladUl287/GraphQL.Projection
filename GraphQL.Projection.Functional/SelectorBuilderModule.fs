@@ -35,26 +35,6 @@ let rec isSubtypeOf (targetType: Type) (typeName: string) =
                 elif isSubtypeOf iface typeName then true
                 else false)
 
-let getPropertyTypes (selections: GraphQLNode list) (targetType: Type): (string * Type) list =
-    selections 
-        |> List.choose (fun node -> 
-            match node with
-            | FieldNode (name, _, alias, _, _) -> 
-                let property = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                if property <> null then
-                    let propertyType = property.PropertyType
-                    let finalType = 
-                        match propertyType with
-                            | t when isPrimitive t -> t
-                            | t when isCollection t -> typeof<IEnumerable>
-                            | _ -> typeof<obj>
-                    let fieldName = if alias.IsSome then alias.Value else property.Name
-                    Some (fieldName, finalType)
-                else
-                    None
-            | _ -> None
-        )
-
 let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
     let parameter = Expression.Parameter(typeof<'a>)
 
@@ -74,10 +54,9 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                 let accessType = access.Type
                     
                 if isCollection accessType then 
-                    let collectionType = accessType
                     let elementType = (getElementType accessType).Value
 
-                    let properties = getPropertyTypes selections elementType
+                    let properties = getPropertiesTypes TypeSystem.defaultInspector selections elementType
                     
                     let anonType = createAnonymousType properties
                     
@@ -110,9 +89,9 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let lambda = Expression.Lambda(memberInit, subParameter)
 
                     Expression.Call(genericSelectMethod, access, lambda)
-                else                            
-                    let properties = getPropertyTypes selections accessType
-                    
+                else
+                    let properties = getPropertiesTypes TypeSystem.defaultInspector selections accessType
+
                     let anonType = createAnonymousType properties
                     
                     let ctor = anonType.GetConstructors().[0]
