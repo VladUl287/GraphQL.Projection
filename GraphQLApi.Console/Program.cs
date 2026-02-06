@@ -18,7 +18,7 @@ var userQuery =
         ])
     ]);
 
-var flattenedNodes = Operations.flatten(typeof(DeletedExternalUser), TypeSystem.defaultInspector, userQuery);
+var flattenedNodes = Operations.flatten(typeof(TemporaryUser), TypeSystem.defaultInspector, userQuery);
 
 var ast = Operations.interpret(flattenedNodes);
 Console.WriteLine(ast);
