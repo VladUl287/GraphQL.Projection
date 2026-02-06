@@ -77,9 +77,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let collectionType = accessType
                     let elementType = (getElementType accessType).Value
 
-                    let flatSelections = flattenFragments selections elementType TypeSystem.defaultInspector
-                            
-                    let properties = getPropertyTypes flatSelections elementType
+                    let properties = getPropertyTypes selections elementType
                     
                     let anonType = createAnonymousType properties
                     
@@ -88,7 +86,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let subParameter = Expression.Parameter(elementType)
 
                     let members = 
-                        flatSelections 
+                        selections 
                         |> List.map (fun selection ->
                             toExpression elementType subParameter selection false
                         )
@@ -112,17 +110,15 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let lambda = Expression.Lambda(memberInit, subParameter)
 
                     Expression.Call(genericSelectMethod, access, lambda)
-                else
-                    let flatSelections = flattenFragments selections accessType TypeSystem.defaultInspector
-                            
-                    let properties = getPropertyTypes flatSelections accessType
+                else                            
+                    let properties = getPropertyTypes selections accessType
                     
                     let anonType = createAnonymousType properties
                     
                     let ctor = anonType.GetConstructors().[0]
                     
                     let members = 
-                        flatSelections 
+                        selections 
                         |> List.map (fun selection ->
                             toExpression accessType access selection false
                         )

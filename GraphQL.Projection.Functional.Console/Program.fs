@@ -1,7 +1,6 @@
 ﻿open GraphQLOp.Operations
 open QueryBuilder
 open System.Text.Json
-open System.Linq
 open GraphQLProcessing
 
 let userQuery = 

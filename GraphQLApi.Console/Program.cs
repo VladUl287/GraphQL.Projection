@@ -6,12 +6,24 @@ using static GraphQLOp;
 
 var userQuery =
     Operations.field("user", [], default, [], [
-        Operations.field("id", [], default, [], [])
+        Operations.field("id", [], default, [], []),
+        Operations.inlineFragment("ExternalUser", [], [
+            Operations.field("metadata", [], default, [], []),
+                Operations.inlineFragment("DeletedExternalUser", [], [
+                    Operations.field("deletedAt", [], default, [], []),
+                ]),
+        ]),
+        Operations.inlineFragment("TemporaryUser", [], [
+            Operations.field("lifeTime", [], default, [], []),
+        ])
     ]);
 
-var ast = Operations.interpret(userQuery);
+var flattenedNodes = Operations.flatten(typeof(DeletedExternalUser), TypeSystem.defaultInspector, userQuery);
 
-var flattenedOperations = GraphQLProcessing.flattenFragments(ast, typeof(User), TypeSystem.defaultInspector);
+var ast = Operations.interpret(flattenedNodes);
+Console.WriteLine(ast);
+
+return;
 
 var selector = QueryBuilder.buildSelector<User>(ast);
 
@@ -28,6 +40,8 @@ var obj = com.Invoke(user);
 
 Console.WriteLine(JsonSerializer.Serialize(user));
 Console.WriteLine(JsonSerializer.Serialize(obj));
+
+return;
 
 var query = new AppDatabaseContext()
     .Users
