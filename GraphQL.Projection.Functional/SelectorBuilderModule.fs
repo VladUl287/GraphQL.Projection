@@ -3,37 +3,8 @@
 open System
 open System.Reflection
 open System.Linq.Expressions
-open System.Collections
-open System.Collections.Generic
 open GraphQLProcessing
 open AnonymousTypeBuilder
-
-let isPrimitive (typ: Type) = typ.IsPrimitive || typ = typeof<string>
-let isCollection (typ: Type) = typ.IsAssignableTo(typeof<IEnumerable>)
-let getElementType (typ: Type) =
-    let a = typ.GetGenericTypeDefinition();
-    match typ with
-    | t when t.IsArray -> 
-        Some (t.GetElementType())
-    | t ->
-        t.GetInterfaces()
-        |> Array.tryPick (fun i ->
-            if i.IsGenericType && 
-               i.GetGenericTypeDefinition() = typedefof<IEnumerable<_>> then
-               Some (i.GetGenericArguments()[0])
-            else
-               None)
-
-let rec isSubtypeOf (targetType: Type) (typeName: string) =
-    if targetType.Name = typeName then true
-    elif targetType.BaseType <> null then 
-        isSubtypeOf targetType.BaseType typeName
-    else
-        targetType.GetInterfaces()
-            |> Array.exists (fun iface -> 
-                if iface.Name = typeName then true
-                elif isSubtypeOf iface typeName then true
-                else false)
 
 let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
     let parameter = Expression.Parameter(typeof<'a>)
@@ -53,8 +24,8 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                 
                 let accessType = access.Type
                     
-                if isCollection accessType then 
-                    let elementType = (getElementType accessType).Value
+                if TypeSystem.defaultInspector.IsCollection accessType then 
+                    let elementType = (TypeSystem.defaultInspector.GetElementType accessType).Value
 
                     let properties = getPropertiesTypes TypeSystem.defaultInspector selections elementType
                     
