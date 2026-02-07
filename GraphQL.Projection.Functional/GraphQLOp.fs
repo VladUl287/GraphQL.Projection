@@ -40,29 +40,45 @@ module Operations =
             let nodes = selections |> List.map interpret
             next (InlineFragmentNode(typeCondition, directives, nodes))
 
-    let rec pruneDirectives (queryRoot: GraphQLOp<'a>) (op: GraphQLOp<'a>): GraphQLOp<'a> =
+    let rec pruneDirectives (op: GraphQLOp<'a>): GraphQLOp<'a> =
+        
+        let rec filterSelections (selections: GraphQLOp<'a> list): GraphQLOp<'a> list =
+            selections |> List.collect (fun selection -> 
+                match selection with 
+                | Field(name, args, alias, directives, selections, next) ->
+                    let (structure, others) = 
+                        directives |> List.partition (fun d -> ["@include"; "@skip"] |> List.contains d.name)
 
-        let getValue (queryRoot: GraphQLOp<'a>) (node: DirectiveNode) =
-            
-            1
+                    let skipSelection = 
+                        not (structure |> List.isEmpty) &&
+                        structure |> List.forall(function
+                            | directive when directive.name = "@include" -> 
+                                directive.arguments 
+                                |> List.tryItem 0
+                                |> Option.exists (fun arg ->
+                                    match arg.value with
+                                    | BooleanValue includ -> not includ
+                                    | _ -> true)
+                            | directive when directive.name = "@skip" ->
+                                directive.arguments 
+                                |> List.tryItem 0
+                                |> Option.exists (fun arg ->
+                                    match arg.value with
+                                    | BooleanValue skip -> skip
+                                    | _ -> false)
+                            | _ -> false
+                        )
 
-        let rec prune (selections: GraphQLOp<'a> list): GraphQLOp<'a> list =
-           selections 
-           |> List.collect (fun selection ->
-               let directives = 
-                    match selection with
-                    | Field(_, _, _, directives, _, _) -> directives
-                    | InlineFragment(_, directives, _, _) -> directives
-                    |> List.filter(fun directive ->
-                        ["@include"; "@skip"] 
-                        |> List.contains directive.name
-                    )
-               []
-           )
+                    if skipSelection then [] else [Field(name, args, alias, others, filterSelections selections, next)]
+                | InlineFragment(typeCondition, directives, selections, next) as t -> [t] 
+            )
 
-        match op with
-        | Field(_, _, _, directives, _, _) as field when directives |> List.isEmpty -> field
-        | other -> other
+        match op with 
+        | Field(name, args, alias, directives, selections, next) ->
+            let filterNodes = filterSelections selections
+            Field(name, args, alias, directives, filterNodes, next)
+        | InlineFragment(typeCondition, directives, selections, next) ->
+            InlineFragment(typeCondition, directives, selections, next)
 
     let rec flatten (targetType: Type) (inspector: TypeInspector) (op: GraphQLOp<'a>): GraphQLOp<'a> =
 
