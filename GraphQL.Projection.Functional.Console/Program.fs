@@ -26,11 +26,11 @@ type User = { Id: int; Name: string; Phone: Phone; Languages: string list; Achie
 
 printfn "AST: %A" userQuery
 
-let flattenMapCarrier = flattenMap typeof<User> TypeSystem.defaultInspector
+let flattenMapCarrier = flatten typeof<User> TypeSystem.defaultInspector
 
 let pruneDirctives = 
     userQuery
-    |> map pruneConditionalNodes
+    |> map prune
     |> map flattenMapCarrier 
 
 let ast = interpret pruneDirctives
