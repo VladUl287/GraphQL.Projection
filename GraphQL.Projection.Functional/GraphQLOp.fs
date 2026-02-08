@@ -40,6 +40,69 @@ module Operations =
             let nodes = selections |> List.map interpret
             next (InlineFragmentNode(typeCondition, directives, nodes))
 
+    let rec prune (op: GraphQLNode): GraphQLNode =
+        match op with 
+        | FieldNode(name, args, alias, directives, selections) ->
+            let prunedSelections = 
+                selections
+                |> List.filter (function
+                    | FieldNode(_, _, _, directives, _)
+                    | InlineFragmentNode(_, directives, _) ->
+                        let structure = 
+                            directives 
+                            |> List.filter (fun d -> ["@include"; "@skip"] |> List.contains d.name)
+
+                        structure.Length = 0 ||
+                        structure |> List.forall(function
+                            | directive when directive.name = "@include" -> 
+                                directive.arguments 
+                                |> List.tryItem 0
+                                |> Option.exists (fun arg ->
+                                    match arg.value with
+                                    | BooleanValue includ -> not includ
+                                    | _ -> true)
+                            | directive when directive.name = "@skip" ->
+                                directive.arguments 
+                                |> List.tryItem 0
+                                |> Option.exists (fun arg ->
+                                    match arg.value with
+                                    | BooleanValue skip -> skip
+                                    | _ -> false)
+                            | _ -> false
+                        )
+                )
+            FieldNode(name, args, alias, directives, prunedSelections)
+        | InlineFragmentNode(typeCondition, directives, selections) ->
+            let prunedSelections = 
+                selections
+                |> List.filter (function
+                    | FieldNode(_, _, _, directives, _)
+                    | InlineFragmentNode(_, directives, _) ->
+                        let structure = 
+                            directives 
+                            |> List.filter (fun d -> ["@include"; "@skip"] |> List.contains d.name)
+
+                        structure.Length <> 0 &&
+                        structure |> List.forall(function
+                            | directive when directive.name = "@include" -> 
+                                directive.arguments 
+                                |> List.tryItem 0
+                                |> Option.exists (fun arg ->
+                                    match arg.value with
+                                    | BooleanValue includ -> not includ
+                                    | _ -> true)
+                            | directive when directive.name = "@skip" ->
+                                directive.arguments 
+                                |> List.tryItem 0
+                                |> Option.exists (fun arg ->
+                                    match arg.value with
+                                    | BooleanValue skip -> skip
+                                    | _ -> false)
+                            | _ -> false
+                        )
+                )
+            InlineFragmentNode(typeCondition, directives, prunedSelections)
+
     let rec pruneDirectives (op: GraphQLOp<'a>): GraphQLOp<'a> =
         
         let rec filterSelections (selections: GraphQLOp<'a> list): GraphQLOp<'a> list =
