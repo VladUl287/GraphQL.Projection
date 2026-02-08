@@ -40,7 +40,7 @@ module Operations =
             let nodes = selections |> List.map interpret
             next (InlineFragmentNode(typeCondition, directives, nodes))
 
-    let rec prune (node: GraphQLNode) : GraphQLNode =
+    let rec pruneConditionalNodes (node: GraphQLNode) : GraphQLNode =
 
         let evaluateDirectives (directives: DirectiveNode list) =
             let conditionalDirectives, otherDirectives = 

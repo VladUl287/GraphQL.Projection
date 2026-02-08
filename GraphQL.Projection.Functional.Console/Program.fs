@@ -26,7 +26,7 @@ printfn "AST: %A" userQuery
 let flattenCarrier = flatten typeof<User> TypeSystem.defaultInspector
 let flattenedQuery = userQuery |> flattenCarrier
 
-let pruneDirctives = flattenedQuery |> map prune
+let pruneDirctives = flattenedQuery |> map pruneConditionalNodes
 
 let ast = interpret pruneDirctives
 printfn "\n\nAST: %A" ast
