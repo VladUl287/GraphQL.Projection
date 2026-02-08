@@ -1,6 +1,7 @@
 ﻿using static GraphQLOp;
 using GraphQLApi.Console;
 using System.Text.Json;
+using Microsoft.FSharp.Core;
 
 var userQuery =
     Operations.field("user", [], default, [], [
@@ -22,9 +23,15 @@ var userQuery =
         ])
     ]);
 
-var flattenedNodes = Operations.flatten(typeof(DeletedExternalUser), TypeSystem.defaultInspector, userQuery);
+var prunedDirctivesQuery = Operations.map(
+    (FSharpFunc<GraphQLProcessing.GraphQLNode, GraphQLProcessing.GraphQLNode>)Operations.pruneConditionalNodes, userQuery);
 
-var ast = Operations.interpret(flattenedNodes);
+Func<GraphQLProcessing.GraphQLNode, GraphQLProcessing.GraphQLNode> flattenCarrier = (node) => 
+    Operations.flattenMap(typeof(DeletedExternalUser), TypeSystem.defaultInspector, node);
+
+var flattenedDirectivesQuery = Operations.map(FuncConvert.FromFunc(flattenCarrier), prunedDirctivesQuery);
+
+var ast = Operations.interpret(flattenedDirectivesQuery);
 Console.WriteLine(ast);
 
 var selector = QueryBuilder.buildSelector<DeletedExternalUser>(ast);

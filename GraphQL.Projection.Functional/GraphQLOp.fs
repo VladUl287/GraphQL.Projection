@@ -86,41 +86,30 @@ module Operations =
         | InlineFragmentNode(typeCondition, directives, selections) ->
             InlineFragmentNode(typeCondition, directives, processSelections selections)
 
-    let rec flatten (targetType: Type) (inspector: TypeInspector) (op: GraphQLOp<'a>): GraphQLOp<'a> =
+    let rec flattenMap (targetType: Type) (inspector: TypeInspector) (node: GraphQLNode): GraphQLNode =
 
-        let rec flattenSelections currentType (selections: GraphQLOp<'a> list) =
+        let rec processSelections (targetType: Type) (inspector: TypeInspector)  (selections: GraphQLNode list) =
             selections 
             |> List.collect (fun selection ->
-                match flatten currentType inspector selection with
-                | InlineFragment(typeCondition, fragDirectives, fragSelections, fragNext) ->
+                match selection with
+                | InlineFragmentNode(typeCondition, _, selections) ->
                     match typeCondition with
                     | Some conditionType ->
-                        if inspector.IsSubtypeOf currentType conditionType then
-                            flattenSelections currentType fragSelections
+                        if inspector.IsSubtypeOf targetType conditionType then
+                            selections
                         else
                             []
                     | None ->
-                        flattenSelections currentType fragSelections
+                        selections
                 | other -> [other]
             )
 
-        match op with
-        | Field(name, args, alias, directives, selections, next) ->
-            let prop = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-            let propType = if prop <> null then prop.PropertyType else targetType
-            
-            let flattenedSelections = flattenSelections propType selections
-            Field(name, args, alias, directives, flattenedSelections, next)
-        | InlineFragment(typeCondition, directives, selections, next) ->
-            match typeCondition with
-                | Some conditionType ->
-                    if inspector.IsSubtypeOf targetType conditionType then
-                        let flattenedSelections = flattenSelections targetType selections
-                        InlineFragment(typeCondition, directives, flattenedSelections, next)
-                    else
-                        InlineFragment(typeCondition, directives, [], next)
-                | None ->
-                    let flattenedSelections = flattenSelections targetType selections
-                    InlineFragment(typeCondition, directives, flattenedSelections, next)
+        match node with
+        | FieldNode(name, args, alias, directives, selections) ->
+            let processedSelections = processSelections targetType inspector selections
+            FieldNode(name, args, alias, directives, processedSelections)
+        | InlineFragmentNode(typeCondition, directives, selections) -> 
+            let processedSelections = processSelections targetType inspector selections
+            InlineFragmentNode(typeCondition, directives, processedSelections)
 
     

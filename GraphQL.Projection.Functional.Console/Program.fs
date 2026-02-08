@@ -17,6 +17,7 @@ let userQuery =
             field "name" [] None [] []
             field "description" [] (Some "desc") [] []
         ]
+
     ]
 
 type Achievement = { Id: int; Name: string; Description: string; }
@@ -25,10 +26,12 @@ type User = { Id: int; Name: string; Phone: Phone; Languages: string list; Achie
 
 printfn "AST: %A" userQuery
 
-let flattenCarrier = flatten typeof<User> TypeSystem.defaultInspector
-let flattenedQuery = userQuery |> flattenCarrier
+let flattenMapCarrier = flattenMap typeof<User> TypeSystem.defaultInspector
 
-let pruneDirctives = flattenedQuery |> map pruneConditionalNodes
+let pruneDirctives = 
+    userQuery
+    |> map pruneConditionalNodes
+    |> map flattenMapCarrier 
 
 let ast = interpret pruneDirctives
 printfn "\n\nAST: %A" ast
