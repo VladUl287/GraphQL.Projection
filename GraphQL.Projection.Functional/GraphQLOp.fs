@@ -40,122 +40,51 @@ module Operations =
             let nodes = selections |> List.map interpret
             next (InlineFragmentNode(typeCondition, directives, nodes))
 
-    let rec prune (op: GraphQLNode): GraphQLNode =
-       match op with 
-       | FieldNode(name, args, alias, directives, selections) ->
-           let prunedSelections = 
-               selections
-               |> List.collect (function
-                    | FieldNode(name, args, alias, directives, selections) ->
-                       let (structure, others) = 
-                           directives |> List.partition (fun d -> ["@include"; "@skip"] |> List.contains d.name)
+    let rec prune (node: GraphQLNode) : GraphQLNode =
+
+        let evaluateDirectives (directives: DirectiveNode list) =
+            let conditionalDirectives, otherDirectives = 
+                directives |> List.partition (fun d -> 
+                    d.name = "@include" || d.name = "@skip")
+            
+            let shouldSkip =
+                conditionalDirectives.Length > 0 &&
+                conditionalDirectives |> List.forall (fun directive ->
+                    match directive.arguments |> List.tryHead with
+                    | Some arg ->
+                        match directive.name, arg.value with
+                        | "@include", BooleanValue false -> true
+                        | "@skip", BooleanValue true -> true    
+                        | "@include", BooleanValue true -> false
+                        | "@skip", BooleanValue false -> false  
+                        | _ -> false
+                    | None -> false)  
+            
+            (shouldSkip, otherDirectives)
+    
+        let processSelections selections =
+            selections
+            |> List.choose (fun selection ->
+                match selection with
+                | FieldNode(name, args, alias, directives, subSelections) ->
+                    let (shouldSkip, filteredDirectives) = evaluateDirectives directives
+                    if shouldSkip 
+                    then None 
+                    else Some (FieldNode(name, args, alias, filteredDirectives, subSelections))
                         
-                       let skip = 
-                           structure.Length <> 0 &&
-                           structure |> List.forall(function
-                               | directive when directive.name = "@include" -> 
-                                   directive.arguments 
-                                   |> List.tryItem 0
-                                   |> Option.exists (fun arg ->
-                                       match arg.value with
-                                       | BooleanValue includ -> not includ
-                                       | _ -> true)
-                               | directive when directive.name = "@skip" ->
-                                   directive.arguments 
-                                   |> List.tryItem 0
-                                   |> Option.exists (fun arg ->
-                                       match arg.value with
-                                       | BooleanValue skip -> skip
-                                       | _ -> false)
-                               | _ -> false
-                           )
+                | InlineFragmentNode(typeCondition, directives, subSelections) ->
+                    let (shouldSkip, filteredDirectives) = evaluateDirectives directives
+                    if shouldSkip 
+                    then None 
+                    else Some (InlineFragmentNode(typeCondition, filteredDirectives, subSelections))
+            )
+        
+        match node with 
+        | FieldNode(name, args, alias, directives, selections) ->
+            FieldNode(name, args, alias, directives, processSelections selections)
 
-                       if skip then [] else [FieldNode(name, args, alias, others, selections)]
-
-                    | InlineFragmentNode(typeCondition, directives, selections) -> 
-                        let (structure, others) = 
-                            directives |> List.partition (fun d -> ["@include"; "@skip"] |> List.contains d.name)
-                        
-                        let skip = 
-                            structure.Length <> 0 &&
-                            structure |> List.forall(function
-                                | directive when directive.name = "@include" -> 
-                                    directive.arguments 
-                                    |> List.tryItem 0
-                                    |> Option.exists (fun arg ->
-                                        match arg.value with
-                                        | BooleanValue includ -> not includ
-                                        | _ -> true)
-                                | directive when directive.name = "@skip" ->
-                                    directive.arguments 
-                                    |> List.tryItem 0
-                                    |> Option.exists (fun arg ->
-                                        match arg.value with
-                                        | BooleanValue skip -> skip
-                                        | _ -> false)
-                                | _ -> false
-                            )
-
-                        if skip then [] else [InlineFragmentNode(typeCondition, directives, selections)]
-               )
-           FieldNode(name, args, alias, directives, prunedSelections)
-       | InlineFragmentNode(typeCondition, directives, selections) ->
-           let prunedSelections = 
-               selections
-               |> List.collect (function
-                    | FieldNode(name, args, alias, directives, selections) ->
-                       let (structure, others) = 
-                           directives |> List.partition (fun d -> ["@include"; "@skip"] |> List.contains d.name)
-                        
-                       let skip = 
-                           structure.Length <> 0 &&
-                           structure |> List.forall(function
-                               | directive when directive.name = "@include" -> 
-                                   directive.arguments 
-                                   |> List.tryItem 0
-                                   |> Option.exists (fun arg ->
-                                       match arg.value with
-                                       | BooleanValue includ -> not includ
-                                       | _ -> true)
-                               | directive when directive.name = "@skip" ->
-                                   directive.arguments 
-                                   |> List.tryItem 0
-                                   |> Option.exists (fun arg ->
-                                       match arg.value with
-                                       | BooleanValue skip -> skip
-                                       | _ -> false)
-                               | _ -> false
-                           )
-
-                       if skip then [] else [FieldNode(name, args, alias, others, selections)]
-
-                    | InlineFragmentNode(typeCondition, directives, selections) -> 
-                        let (structure, others) = 
-                            directives |> List.partition (fun d -> ["@include"; "@skip"] |> List.contains d.name)
-                        
-                        let skip = 
-                            structure.Length <> 0 &&
-                            structure |> List.forall(function
-                                | directive when directive.name = "@include" -> 
-                                    directive.arguments 
-                                    |> List.tryItem 0
-                                    |> Option.exists (fun arg ->
-                                        match arg.value with
-                                        | BooleanValue includ -> not includ
-                                        | _ -> true)
-                                | directive when directive.name = "@skip" ->
-                                    directive.arguments 
-                                    |> List.tryItem 0
-                                    |> Option.exists (fun arg ->
-                                        match arg.value with
-                                        | BooleanValue skip -> skip
-                                        | _ -> false)
-                                | _ -> false
-                            )
-
-                        if skip then [] else [InlineFragmentNode(typeCondition, directives, selections)]
-               )
-           InlineFragmentNode(typeCondition, directives, prunedSelections)
+        | InlineFragmentNode(typeCondition, directives, selections) ->
+            InlineFragmentNode(typeCondition, directives, processSelections selections)
 
     let rec flatten (targetType: Type) (inspector: TypeInspector) (op: GraphQLOp<'a>): GraphQLOp<'a> =
 
