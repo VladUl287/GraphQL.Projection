@@ -9,12 +9,12 @@ let userQuery =
             field "country" [] None [] []
             field "number" [] None [] []
         ]
-        //field "languages" [] None [] []
-        //field "achievements" [] None [] [
-        //    field "id" [] None [] []
-        //    field "name" [] None [] []
-        //    field "description" [] (Some "desc") [] []
-        //]
+        field "languages" [] None [] []
+        field "achievements" [] None [] [
+            field "id" [] None [] []
+            field "name" [] None [] []
+            field "description" [] (Some "desc") [] []
+        ]
     ]
 
 type Achievement = { Id: int; Name: string; Description: string; }
@@ -23,10 +23,10 @@ type User = { Id: int; Name: string; Phone: Phone; Languages: string list; Achie
 
 printfn "AST: %A" userQuery
 
-let pruneDirctives = userQuery |> map prune
+let flattenCarrier = flatten typeof<User> TypeSystem.defaultInspector
+let flattenedQuery = userQuery |> flattenCarrier
 
-//let flattenCarrier = flatten typeof<User> TypeSystem.defaultInspector
-//let test = userQuery |> flattenCarrier
+let pruneDirctives = flattenedQuery |> map prune
 
 let ast = interpret pruneDirctives
 printfn "\n\nAST: %A" ast
