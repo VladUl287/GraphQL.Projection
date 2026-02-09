@@ -114,6 +114,7 @@ module Operations =
             InlineFragmentNode(typeCondition, directives, processedSelections)
 
 type GraphQLOpOperations = {
+    Interpret: GraphQLOp<GraphQLNode> -> GraphQLNode
     Flatten: GraphQLNode -> GraphQLNode
     Prune: GraphQLNode -> GraphQLNode
 }
