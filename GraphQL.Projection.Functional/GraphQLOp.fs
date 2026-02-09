@@ -3,6 +3,8 @@
 open System
 open TypeSystem
 open GraphQLProcessing
+open System.Linq.Expressions
+open System.Reflection
 
 type GraphQLOp<'a> =
     | Field of 
