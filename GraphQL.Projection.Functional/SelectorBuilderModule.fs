@@ -9,19 +9,14 @@ open AnonymousTypeBuilder
 let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
     let parameter = Expression.Parameter(typeof<'a>)
 
-    let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode) (root: bool): Expression = 
+    let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode): Expression = 
         match node with
             | FieldNode(name, _, _, _, selections) when List.isEmpty selections ->
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 Expression.Property(param, property) :> Expression
             | FieldNode(name, args, alias, directives, selections) -> 
-                let access = 
-                    match root with
-                        | true -> param
-                        | false -> 
-                            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                            Expression.Property(param, property)
-                
+                let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let access = if property = null then param else Expression.Property(param, property)
                 let accessType = access.Type
                     
                 if TypeSystem.defaultInspector.IsCollection accessType then 
@@ -38,7 +33,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let members = 
                         selections 
                         |> List.map (fun selection ->
-                            toExpression elementType subParameter selection false
+                            toExpression elementType subParameter selection
                         )
                                         
                     let bindings = 
@@ -70,7 +65,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let members = 
                         selections 
                         |> List.map (fun selection ->
-                            toExpression accessType access selection false
+                            toExpression accessType access selection
                         )
                                         
                     let bindings = 
@@ -83,5 +78,5 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
             | InlineFragmentNode(_, _, _) -> 
                Expression.Empty()
 
-    let body = toExpression typeof<'a> parameter node true
+    let body = toExpression typeof<'a> parameter node
     Expression.Lambda<Func<'a, obj>>(body, parameter)
