@@ -13,11 +13,15 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
         match node with
             | FieldNode(name, _, _, _, selections) when List.isEmpty selections ->
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                if isNull property then
+                    failwithf "Property '%s' not found on type '%s'" name currentType.Name
                 Expression.Property(param, property) :> Expression
             | FieldNode(name, args, alias, directives, selections) -> 
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                let access = if property = null then param else Expression.Property(param, property)
-                let accessType = access.Type
+                let accessExpr = 
+                    if isNull property then param 
+                    else Expression.Property(param, property)
+                let accessType = accessExpr.Type
                     
                 if TypeSystem.defaultInspector.IsCollection accessType then 
                     let elementType = (TypeSystem.defaultInspector.GetElementType accessType).Value
@@ -54,7 +58,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
 
                     let lambda = Expression.Lambda(memberInit, subParameter)
 
-                    Expression.Call(genericSelectMethod, access, lambda)
+                    Expression.Call(genericSelectMethod, accessExpr, lambda)
                 else
                     let properties = getPropertiesTypes TypeSystem.defaultInspector selections accessType
 
@@ -65,7 +69,7 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                     let members = 
                         selections 
                         |> List.map (fun selection ->
-                            toExpression accessType access selection
+                            toExpression accessType accessExpr selection
                         )
                                         
                     let bindings = 
