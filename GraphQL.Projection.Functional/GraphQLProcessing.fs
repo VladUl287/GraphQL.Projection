@@ -67,7 +67,6 @@ and ValueNode =
     | ObjectValue of fields: (string * ValueNode) list
 
 type NodeProcessor = {
-    FlattenFragments: GraphQLNode list -> Type -> GraphQLNode list
     GetPropertyTypes: GraphQLNode list -> Type -> (string * Type) list
 }
 

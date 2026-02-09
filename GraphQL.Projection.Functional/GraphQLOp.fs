@@ -1,9 +1,8 @@
 ﻿module GraphQLOp
 
-open GraphQLProcessing
 open System
 open TypeSystem
-open System.Reflection
+open GraphQLProcessing
 
 type GraphQLOp<'a> =
     | Field of 
@@ -112,4 +111,7 @@ module Operations =
             let processedSelections = processSelections targetType inspector selections
             InlineFragmentNode(typeCondition, directives, processedSelections)
 
-    
+type GraphQLOpOperations = {
+    Flatten: GraphQLNode -> GraphQLNode
+    Prune: GraphQLNode -> GraphQLNode
+}

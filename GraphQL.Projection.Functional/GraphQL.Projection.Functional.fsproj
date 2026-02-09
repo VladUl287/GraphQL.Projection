@@ -9,8 +9,8 @@
     <Compile Include="TypeSystem.fs" />
     <Compile Include="GraphQLProcessing.fs" />
     <Compile Include="AnonymousTypeBuilder.fs" />
-    <Compile Include="ExpressionBuilder.fs" />
     <Compile Include="GraphQLOp.fs" />
+    <Compile Include="ExpressionBuilder.fs" />
     <Compile Include="SelectorBuilderModule.fs" />
   </ItemGroup>
 
