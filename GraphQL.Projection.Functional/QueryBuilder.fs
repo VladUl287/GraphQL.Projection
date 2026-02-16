@@ -10,7 +10,7 @@ type QueryBuilderContext<'a> = {
     Expressions: ExpressionBuilderOp<'a>
 }
 
-let project<'a> (op: GraphQLOp<GraphQLNode>) (ctx: QueryBuilderContext<'a>) (query: IQueryable<'a>): IQueryable<obj> = 
+let project<'a> (ctx: QueryBuilderContext<'a>) (op: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> = 
     let interpreted = 
         op
         |> Operations.map ctx.GraphQL.Prune
