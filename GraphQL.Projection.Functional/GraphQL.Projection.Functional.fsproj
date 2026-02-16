@@ -6,6 +6,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="QueryBuilder.fs" />
     <Compile Include="TypeSystem.fs" />
     <Compile Include="GraphQLProcessing.fs" />
     <Compile Include="AnonymousTypeBuilder.fs" />

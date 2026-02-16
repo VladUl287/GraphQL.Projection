@@ -1,7 +1,7 @@
 ﻿open GraphQLProcessing
 open GraphQLOp.Operations
-open QueryBuilder
 open System.Text.Json
+open SelectorBuilder
 
 let userQuery = 
     field "user" [] None [] [

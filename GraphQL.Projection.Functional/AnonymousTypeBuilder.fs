@@ -4,8 +4,8 @@ open System
 open System.Reflection.Emit
 open System.Reflection
 
-type Builder = {
-    CreateType: (string * Type) list -> Type
+type AnonymousTypeFactory = {
+    CreateAnonymousType: (string * Type) list -> Type
 }
 
 let createAnonymousType(properties: (string * Type) list) =

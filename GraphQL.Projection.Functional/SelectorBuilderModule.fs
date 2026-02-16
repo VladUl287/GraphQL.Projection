@@ -1,4 +1,4 @@
-﻿module QueryBuilder
+﻿module SelectorBuilder
 
 open System
 open System.Reflection
@@ -13,8 +13,6 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
         match node with
             | FieldNode(name, _, _, _, selections) when List.isEmpty selections ->
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                if isNull property then
-                    failwithf "Property '%s' not found on type '%s'" name currentType.Name
                 Expression.Property(param, property) :> Expression
             | FieldNode(name, args, alias, directives, selections) -> 
                 let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
