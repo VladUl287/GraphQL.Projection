@@ -15,7 +15,7 @@ let buildSelect<'a> (node: GraphQLNode): Expression<Func<'a, obj>> =
     select
 
 type ExpressionBuilderOp<'a> = {
-    buildSelect: GraphQLNode -> Expression<Func<'a, obj>>
-    buildWhere: GraphQLNode -> Expression<Func<'a, bool>>
-    buildOrderBy: GraphQLNode -> Expression<Func<'a, obj>>
+    BuildSelect: GraphQLNode -> Expression<Func<'a, obj>>
+    BuildWhere: GraphQLNode -> Expression<Func<'a, bool>>
+    BuildOrderBy: GraphQLNode -> Expression<Func<'a, obj>>
 }
