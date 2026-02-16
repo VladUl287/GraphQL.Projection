@@ -7,7 +7,7 @@ open ExpressionBuilderModule
 
 type QueryBuilderContext<'a> = {
     GraphQL: GraphQLOpOperations
-    Expressionss: ExpressionBuilderOp<'a>
+    Expressions: ExpressionBuilderOp<'a>
 }
 
 let project<'a> (op: GraphQLOp<GraphQLNode>) (ctx: QueryBuilderContext<'a>) (query: IQueryable<'a>): IQueryable<obj> = 
@@ -17,9 +17,9 @@ let project<'a> (op: GraphQLOp<GraphQLNode>) (ctx: QueryBuilderContext<'a>) (que
         |> Operations.map ctx.GraphQL.Flatten
         |> ctx.GraphQL.Interpret
 
-    let selectExp = ctx.Expressionss.BuildSelect interpreted
-    let whereExp = ctx.Expressionss.BuildWhere interpreted
-    let orderBy = ctx.Expressionss.BuildOrderBy interpreted
+    let selectExp = ctx.Expressions.BuildSelect interpreted
+    let whereExp = ctx.Expressions.BuildWhere interpreted
+    let orderBy = ctx.Expressions.BuildOrderBy interpreted
 
     query
         .Select(selectExp)
