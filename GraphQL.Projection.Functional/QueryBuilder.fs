@@ -1,23 +1,18 @@
 ﻿module QueryBuilder
 
-open GraphQLOp
 open System.Linq
 open GraphQLProcessing
 open ExpressionBuilderModule
+open GraphQLOp
 
-type QueryBuilderContext<'a> = {
-    GraphQL: GraphQLOpOperations
-    Expressions: ExpressionBuilderOp<'a>
+type QueryContext<'a> = {
+    GraphQL: GraphQLOperations
+    Expressions: QueryExpressionBuilder<'a>
 }
 
-let project<'a> (ctx: QueryBuilderContext<'a>) (op: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> = 
-    let processedOp = ctx.GraphQL.Normalize op
+let project<'a> (ctx: QueryContext<'a>) (ast: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> =
+    let normalized = ctx.GraphQL.Normilize ast
+    let node = ctx.GraphQL.Interpret normalized
 
-    let ast = ctx.GraphQL.Interpret processedOp
-
-    let selectExp = ctx.Expressions.BuildSelect ast
-    let whereExp = ctx.Expressions.BuildWhere ast
-    let orderBy = ctx.Expressions.BuildOrderBy ast
-
-    query
-        .Select(selectExp)
+    let selectExp = ctx.Expressions.BuildSelect node
+    query.Select(selectExp)
