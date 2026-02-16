@@ -13,6 +13,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\GraphQL.Projection.Functional\GraphQL.Projection.Functional.fsproj" />
+    <ProjectReference Include="..\graphql.projection\GraphQL.Projection.csproj" />
   </ItemGroup>
 
 </Project>

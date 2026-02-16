@@ -2,12 +2,14 @@
 open System
 open System.Collections
 open System.Collections.Generic
+open System.Linq
 
 type TypeInspector = {
     IsPrimitive: Type -> bool
     IsCollection: Type -> bool
     IsSubtypeOf: Type -> string -> bool
     GetElementType: Type -> Type option
+    GetCollectionType: Type -> Type option
 }
 
 let defaultInspector: TypeInspector =
@@ -40,9 +42,18 @@ let defaultInspector: TypeInspector =
             t.GetInterfaces() 
                 |> Array.tryPick getElementType
 
+    let getCollectionType (typ: Type): Type option = 
+        if typ.IsAssignableTo(typeof<IQueryable>) then
+            Some typeof<Queryable>
+        elif typ.IsAssignableTo(typeof<IEnumerable>) then
+            Some typeof<Enumerable>
+        else 
+            None
+
     {
         IsPrimitive = isPrimitive
         IsSubtypeOf = isSubtypeOf
         IsCollection = isCollection
         GetElementType = getElementType
+        GetCollectionType = getCollectionType
     }

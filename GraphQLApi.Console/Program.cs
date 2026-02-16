@@ -4,25 +4,27 @@ using System.Text.Json;
 using Microsoft.FSharp.Core;
 using GraphQLApi.Console.Data;
 using Microsoft.EntityFrameworkCore;
+using GraphQL.Projection;
 
 var userQuery =
     Operations.field("user", [], default, [], [
         Operations.field("id", [], default, [], []),
+        Operations.field("createdAt", [], default, [], []),
         Operations.field("role", [], default, [], [
-            Operations.field("id", [], default, [], []),
-            Operations.inlineFragment("ExternalRole", [], [
-                Operations.field("source", [], default, [], [])
-            ])
+            Operations.field("name", [], default, [], []),
+            //Operations.inlineFragment("ExternalRole", [], [
+            //    Operations.field("source", [], default, [], [])
+            //])
         ]),
-        Operations.inlineFragment("ExternalUser", [], [
-            Operations.field("metadata", [], default, [], []),
-                Operations.inlineFragment("DeletedExternalUser", [], [
-                    Operations.field("deletedAt", [], default, [], []),
-                ]),
-        ]),
-        Operations.inlineFragment("TemporaryUser", [], [
-            Operations.field("lifeTime", [], default, [], []),
-        ])
+        //Operations.inlineFragment("ExternalUser", [], [
+        //    Operations.field("metadata", [], default, [], []),
+        //        Operations.inlineFragment("DeletedExternalUser", [], [
+        //            Operations.field("deletedAt", [], default, [], []),
+        //        ]),
+        //]),
+        //Operations.inlineFragment("TemporaryUser", [], [
+        //    Operations.field("lifeTime", [], default, [], []),
+        //])
     ]);
 
 //var prunedDirctivesQuery = Operations.map(
@@ -33,44 +35,42 @@ var userQuery =
 
 //var flattenedDirectivesQuery = Operations.map(FuncConvert.FromFunc(flattenCarrier), prunedDirctivesQuery);
 
-var ast = Operations.interpret(userQuery);
-Console.WriteLine(ast);
+//var ast = Operations.interpret(userQuery);
+//Console.WriteLine(ast);
 
-var selector = SelectorBuilder.buildSelector<User>(ast);
-Console.WriteLine(string.Empty);
-Console.WriteLine(selector);
+//var selector = SelectorBuilder.buildSelector<User>(ast);
+//Console.WriteLine(string.Empty);
+//Console.WriteLine(selector);
 
-var user = new DeletedExternalUser
-{
-    Id = 1,
-    Name = "test",
-    Role = new()
-    {
-        Id = 1,
-        Name = "test",
-        Source = "source"
-    },
-    Metadata = "external metadata",
-    DeletedAt = DateTime.UtcNow
-};
+//var user = new DeletedExternalUser
+//{
+//    Id = 1,
+//    Name = "test",
+//    Role = new()
+//    {
+//        Id = 1,
+//        Name = "test",
+//        Source = "source"
+//    },
+//    Metadata = "external metadata",
+//    DeletedAt = DateTime.UtcNow
+//};
 
-var com = selector.Compile();
-//var obj = com.Invoke(user);
+//var com = selector.Compile();
+////var obj = com.Invoke(user);
 
-Console.WriteLine(string.Empty);
-Console.WriteLine(JsonSerializer.Serialize(user));
-Console.WriteLine(string.Empty);
+//Console.WriteLine(string.Empty);
+//Console.WriteLine(JsonSerializer.Serialize(user));
+//Console.WriteLine(string.Empty);
 //Console.WriteLine(JsonSerializer.Serialize(obj));
 
 var query = new AppDatabaseContext()
     .Users
-    .OrderBy(c => c.CreatedAt)
-    .Select(selector)
-    ;
+    .ProjectTo(userQuery);
 
 Console.WriteLine(query.ToQueryString());
 
-await foreach (var item in query.AsAsyncEnumerable())
-{
-    Console.WriteLine(JsonSerializer.Serialize(item));
-}
+//await foreach (var item in query.AsAsyncEnumerable())
+//{
+//    Console.WriteLine(JsonSerializer.Serialize(item));
+//}

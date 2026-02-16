@@ -37,7 +37,8 @@ let buildSelector<'a> (node: GraphQLNode) : Expression<Func<'a, obj>> =
                         |> List.map (fun selection ->
                             toExpression elementType subParameter selection
                         )
-                                        
+    
+                    
                     let bindings = 
                         members
                         |> List.mapi (fun index exp ->

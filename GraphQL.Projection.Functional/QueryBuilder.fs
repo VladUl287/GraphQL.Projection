@@ -11,13 +11,10 @@ type QueryContext<'a> = {
 }
 
 let project<'a> (ctx: QueryContext<'a>) (ast: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> =
-    let normalized = ctx.GraphQL.Normilize ast
-    let node = ctx.GraphQL.Interpret normalized
+    let { GraphQL = graph; Query = queryOp } = ctx
 
-    let selectExp = ctx.Query.Select node
-    let whereExpr = ctx.Query.Where node
-    let orderByExpr = ctx.Query.OrderBy node
-    query
-        .Where(whereExpr)
-        .OrderBy(orderByExpr.Expression)
-        .Select(selectExp)
+    let normalized = graph.Normilize ast
+    let node = graph.Interpret normalized
+
+    let builder = queryOp.Build node
+    builder.Compile().Invoke(query)
