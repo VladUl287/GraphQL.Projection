@@ -1,20 +1,20 @@
-﻿module QueryBuilder
+﻿module QueryProjection
 
+open GraphQLOp
 open System.Linq
 open GraphQLProcessing
-open ExpressionBuilderModule
-open GraphQLOp
+open ExpressionSystem
 
 type QueryContext<'a> = {
     GraphQL: GraphQLOperations
-    Query: QueryOperations<'a>
 }
 
 let project<'a> (ctx: QueryContext<'a>) (ast: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> =
-    let { GraphQL = graph; Query = queryOp } = ctx
+    let { GraphQL = graph; } = ctx
 
     let normalized = graph.Normilize ast
     let node = graph.Interpret normalized
 
-    let builder = queryOp.Build node
-    builder.Compile().Invoke(query)
+    let builder = createFactory<'a> node
+
+    builder.Invoke(query)

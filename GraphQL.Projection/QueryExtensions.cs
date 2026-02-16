@@ -1,6 +1,5 @@
-﻿using Microsoft.FSharp.Core;
-using System.Linq.Expressions;
-using static GraphQLOp;
+﻿using static GraphQLOp;
+using Microsoft.FSharp.Core;
 using static GraphQLProcessing;
 
 namespace GraphQL.Projection;
@@ -13,11 +12,8 @@ public static class QueryExtensions
         Func<GraphQLOp<GraphQLNode>, GraphQLNode> interpret = Operations.interpret;
         var graphQLOperations = new GraphQLOperations(FuncConvert.FromFunc(normilize), FuncConvert.FromFunc(interpret));
 
-        Func<GraphQLNode, Expression<Func<IQueryable<T>, IQueryable<object>>>> build = (node) => ExpressionBuilderModule.buildQuery<T>(node);
-        var queryOperations = new ExpressionBuilderModule.QueryOperations<T>(FuncConvert.FromFunc(build));
+        var queryContext = new QueryProjection.QueryContext<T>(graphQLOperations);
 
-        var queryContext = new QueryBuilder.QueryContext<T>(graphQLOperations, queryOperations);
-
-        return QueryBuilder.project<T>(queryContext, op, query);
+        return QueryProjection.project<T>(queryContext, op, query);
     }
 }

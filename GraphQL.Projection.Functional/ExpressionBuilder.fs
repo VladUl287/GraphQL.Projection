@@ -1,4 +1,4 @@
-﻿module ExpressionBuilderModule
+﻿module ExpressionSystem
 
 open System
 open GraphQLProcessing
@@ -6,6 +6,10 @@ open System.Linq.Expressions
 open System.Linq
 open System.Reflection
 open AnonymousTypeBuilder
+
+type BuilderFactory<'a> = {
+    Create: GraphQLNode -> Func<IQueryable<'a>, IQueryable<obj>>
+}
 
 type ExpressionBuilderContext = {
     TypeInspector: TypeSystem.TypeInspector
@@ -87,20 +91,15 @@ let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode)
         | InlineFragmentNode(_, _, _) -> 
            Expression.Empty()
     
-let buildQuery<'a> (node: GraphQLNode) : Expression<Func<IQueryable<'a>, IQueryable<obj>>> =
+let createFactory<'a> (node: GraphQLNode): Func<IQueryable<'a>, IQueryable<obj>> =
     let parameter = Expression.Parameter(typeof<IQueryable<'a>>)
 
     let body = toExpression typeof<'a> parameter node
     
-    Expression.Lambda<Func<IQueryable<'a>, IQueryable<obj>>>(body, parameter)
+    let result = Expression.Lambda<Func<IQueryable<'a>, IQueryable<obj>>>(body, parameter)
 
-type QueryOperations<'a> = {
-    Build: GraphQLNode -> Expression<Func<IQueryable<'a>, IQueryable<obj>>>
+    result.Compile()
 
-    //Select: GraphQLNode -> Expression<Func<'a, obj>>
-    //Where: GraphQLNode -> Expression<Func<'a, bool>>
-    //OrderBy: GraphQLNode -> OrderByOperation<'a>
-    //Pagination : PaginationOperation option
-    //Distinct : bool
-    //GroupBy : Expression<Func<'a, obj>> option
+let defaultFactory: BuilderFactory<'a> = {
+    Create = createFactory<'a>
 }

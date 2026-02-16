@@ -11,7 +11,6 @@
     <Compile Include="AnonymousTypeBuilder.fs" />
     <Compile Include="GraphQLOp.fs" />
     <Compile Include="ExpressionBuilder.fs" />
-    <Compile Include="SelectorBuilderModule.fs" />
     <Compile Include="QueryBuilder.fs" />
   </ItemGroup>
 
