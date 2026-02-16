@@ -12,7 +12,7 @@ public static class QueryExtensions
         Func<GraphQLOp<GraphQLNode>, GraphQLNode> interpret = Operations.interpret;
         var graphQLOperations = new GraphQLOperations(FuncConvert.FromFunc(normilize), FuncConvert.FromFunc(interpret));
 
-        var queryContext = new QueryProjection.QueryContext<T>(graphQLOperations);
+        var queryContext = new QueryProjection.QueryContext<T>(graphQLOperations, ExpressionSystem.defaultFactory<T>());
 
         return QueryProjection.project<T>(queryContext, op, query);
     }
