@@ -113,10 +113,10 @@ module Operations =
             let processedSelections = processSelections targetType inspector selections
             InlineFragmentNode(typeCondition, directives, processedSelections)
 
-type GraphQLPipeline = GraphQLOp<GraphQLNode> -> GraphQLOp<GraphQLNode>
+type GraphQLNormalizer   = GraphQLOp<GraphQLNode> -> GraphQLOp<GraphQLNode>
 
 type GraphQLOpOperations = {
-    Normalize: GraphQLPipeline
+    Normalize: GraphQLNormalizer
     Interpret: GraphQLOp<GraphQLNode> -> GraphQLNode
 }
 
