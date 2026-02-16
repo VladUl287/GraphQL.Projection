@@ -10,6 +10,7 @@ public class BaseUser<T> where T : Role
 public class User : BaseUser<Role>
 {
     public DateTime CreatedAt { get; init; }
+    public ICollection<Product> Products { get; init; } = [];
 }
 
 public class ExternalUser : BaseUser<ExternalRole>
@@ -36,4 +37,27 @@ public class Role
 public class ExternalRole : Role
 {
     public string Source { get; init; }
+}
+
+public class Product
+{
+    public Guid Id { get; init; }
+    public string Number { get; init; }
+    public string Name { get; init; }
+    public DateTime CreatedAt { get; init; }
+
+    public virtual List<ProductVariant> Variants { get; init; } = [];
+}
+
+public sealed class ProductVariant
+{
+    public Guid Id { get; init; }
+    public ProductVariantType Type { get; init; }
+    public int Size { get; init; }
+}
+
+public enum ProductVariantType
+{
+    Default,
+    Other
 }

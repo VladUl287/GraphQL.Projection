@@ -16,6 +16,14 @@ var userQuery =
             //    Operations.field("source", [], default, [], [])
             //])
         ]),
+        Operations.field("products", [], default, [], [
+            Operations.field("number", [], default, [], []),
+            Operations.field("createdAt", [], default, [], []),
+            Operations.field("variants", [], default, [], [
+                Operations.field("type", [], default, [], []),
+                Operations.field("size", [], default, [], []),
+            ]),
+        ]),
         //Operations.inlineFragment("ExternalUser", [], [
         //    Operations.field("metadata", [], default, [], []),
         //        Operations.inlineFragment("DeletedExternalUser", [], [
