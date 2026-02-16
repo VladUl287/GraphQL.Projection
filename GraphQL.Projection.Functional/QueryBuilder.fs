@@ -11,15 +11,13 @@ type QueryBuilderContext<'a> = {
 }
 
 let project<'a> (ctx: QueryBuilderContext<'a>) (op: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> = 
-    let interpreted = 
-        op
-        |> Operations.map ctx.GraphQL.Prune
-        |> Operations.map ctx.GraphQL.Flatten
-        |> ctx.GraphQL.Interpret
+    let processedOp = ctx.GraphQL.Normalize op
 
-    let selectExp = ctx.Expressions.BuildSelect interpreted
-    let whereExp = ctx.Expressions.BuildWhere interpreted
-    let orderBy = ctx.Expressions.BuildOrderBy interpreted
+    let ast = ctx.GraphQL.Interpret processedOp
+
+    let selectExp = ctx.Expressions.BuildSelect ast
+    let whereExp = ctx.Expressions.BuildWhere ast
+    let orderBy = ctx.Expressions.BuildOrderBy ast
 
     query
         .Select(selectExp)
