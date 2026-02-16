@@ -1,15 +1,21 @@
-﻿module ExpressionBuilder
+﻿module ExpressionBuilderModule
 
 open System
-open GraphQLOp
 open GraphQLProcessing
 open System.Linq.Expressions
-open System.Reflection
 
 type ExpressionBuilderContext = {
     TypeInspector: TypeSystem.TypeInspector
     NodeProcessor: GraphQLProcessing.NodeProcessor
-    GraphQLOperations: GraphQLOp.GraphQLOpOperations
     AnonymousTypeFactory: AnonymousTypeBuilder.AnonymousTypeFactory
 }
 
+let buildSelect<'a> (node: GraphQLNode): Expression<Func<'a, obj>> = 
+    let select = fun (arg: 'a) -> arg :> obj
+    select
+
+type ExpressionBuilderOp<'a> = {
+    buildSelect: GraphQLNode -> Expression<Func<'a, obj>>
+    buildWhere: GraphQLNode -> Expression<Func<'a, bool>>
+    buildOrderBy: GraphQLNode -> Expression<Func<'a, obj>>
+}
