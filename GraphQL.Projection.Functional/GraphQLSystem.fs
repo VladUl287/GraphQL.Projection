@@ -66,10 +66,6 @@ and ValueNode =
     | ListValue of values: ValueNode list
     | ObjectValue of fields: (string * ValueNode) list
 
-type NodeProcessor = {
-    GetPropertyTypes: GraphQLNode list -> Type -> (string * Type) list
-}
-
 let getPropertiesTypes (inspector: TypeInspector) (selections: GraphQLNode list) (targetType: Type): (string * Type) list =
     selections 
         |> List.choose (fun node -> 

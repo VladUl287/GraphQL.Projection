@@ -18,11 +18,6 @@ type GraphQLOp<'a> =
         selections: GraphQLOp<'a> list * 
         next: (GraphQLNode -> 'a)
 
-type GraphQLOperations = {
-    normilize: GraphQLOp<GraphQLNode> -> GraphQLOp<GraphQLNode>
-    interpret: GraphQLOp<GraphQLNode> -> GraphQLNode
-}
-
 module Operations =
     let rec map (f: 'a -> 'b) (op: GraphQLOp<'a>) : GraphQLOp<'b> =
         match op with

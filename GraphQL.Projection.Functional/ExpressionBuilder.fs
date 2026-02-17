@@ -1,4 +1,4 @@
-﻿module ExpressionSystem
+﻿module ExpressionBuilder
 
 open System
 open System.Linq
@@ -8,14 +8,11 @@ open GraphQLSystem
 open TypeSystem
 open AnonymousTypeBuilder
 
-type ExpressionContext = {
+type BuilderContext = {
     typeInspector: TypeInspector
-    nodeProcessor: NodeProcessor
     typeFactory: AnonymousTypeFactory
 }
-
 type Builder<'a> = Func<IQueryable<'a>, IQueryable<obj>>
-type BuilderFactory<'a> = ExpressionContext -> GraphQLNode -> Builder<'a>
 
 let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode): Expression = 
     match node with
@@ -91,7 +88,7 @@ let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode)
         | InlineFragmentNode(_, _, _) -> 
            Expression.Empty()
     
-let builderFactory<'a> (ctx: ExpressionContext) (node: GraphQLNode): Builder<'a> =
+let builderFactory<'a> (ctx: BuilderContext) (node: GraphQLNode): Builder<'a> =
     let parameter = Expression.Parameter(typeof<IQueryable<'a>>)
 
     let body = toExpression typeof<'a> parameter node
