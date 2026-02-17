@@ -14,6 +14,8 @@ type BuilderContext = {
 }
 type Builder<'a> = Func<IQueryable<'a>, IQueryable<obj>>
 
+type ArgumentProcessor = BuilderContext -> Type -> Expression -> GraphQLNode -> Expression option
+
 let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expression) (node: GraphQLNode): Result<Expression, string> = 
     let getProperty (typ: Type) (name: string) = 
         typ.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
