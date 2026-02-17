@@ -1,14 +1,18 @@
-﻿using static GraphQLOp;
-using GraphQLApi.Console;
-using System.Text.Json;
-using Microsoft.FSharp.Core;
+﻿using GraphQL.Projection;
 using GraphQLApi.Console.Data;
 using Microsoft.EntityFrameworkCore;
-using GraphQL.Projection;
+using System.Xml.Linq;
+using static GraphQLSystem;
 
 var userQuery =
     Operations.field("user", [], default, [], [
-        Operations.field("id", [], default, [], []),
+        Operations.field("id", [], default,
+        [
+            new GraphQLProcessing.DirectiveNode("@skip",
+            [
+                new GraphQLProcessing.ArgumentNode("if", GraphQLProcessing.ValueNode.BooleanValue.NewBooleanValue(true))
+            ])
+        ], []),
         Operations.field("createdAt", [], default, [], []),
         Operations.field("role", [], default, [], [
             Operations.field("name", [], default, [], []),
@@ -16,14 +20,14 @@ var userQuery =
             //    Operations.field("source", [], default, [], [])
             //])
         ]),
-        Operations.field("products", [], default, [], [
-            Operations.field("number", [], default, [], []),
-            Operations.field("createdAt", [], default, [], []),
-            Operations.field("variants", [], default, [], [
-                Operations.field("type", [], default, [], []),
-                Operations.field("size", [], default, [], []),
-            ]),
-        ]),
+        //Operations.field("products", [], default, [], [
+        //    Operations.field("number", [], default, [], []),
+        //    Operations.field("createdAt", [], default, [], []),
+        //    Operations.field("variants", [], default, [], [
+        //        Operations.field("type", [], default, [], []),
+        //        Operations.field("size", [], default, [], []),
+        //    ]),
+        //]),
         //Operations.inlineFragment("ExternalUser", [], [
         //    Operations.field("metadata", [], default, [], []),
         //        Operations.inlineFragment("DeletedExternalUser", [], [

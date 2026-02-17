@@ -1,5 +1,5 @@
 ﻿open GraphQLProcessing
-open GraphQLOp.Operations
+open GraphQLSystem.Operations
 open System.Text.Json
 
 let userQuery = 

@@ -7,14 +7,14 @@ open System.Linq
 open System.Reflection
 open AnonymousTypeBuilder
 
-type BuilderFactory<'a> = {
-    Create: GraphQLNode -> Func<IQueryable<'a>, IQueryable<obj>>
-}
-
-type ExpressionBuilderContext = {
+type ExpressionContext = {
     TypeInspector: TypeSystem.TypeInspector
     NodeProcessor: GraphQLProcessing.NodeProcessor
     AnonymousTypeFactory: AnonymousTypeBuilder.AnonymousTypeFactory
+}
+
+type BuilderFactory<'a> = {
+    Create: ExpressionContext -> GraphQLNode -> Func<IQueryable<'a>, IQueryable<obj>>
 }
 
 let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode): Expression = 
@@ -91,7 +91,7 @@ let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode)
         | InlineFragmentNode(_, _, _) -> 
            Expression.Empty()
     
-let createFactory<'a> (node: GraphQLNode): Func<IQueryable<'a>, IQueryable<obj>> =
+let createFactory<'a> (ctx: ExpressionContext) (node: GraphQLNode): Func<IQueryable<'a>, IQueryable<obj>> =
     let parameter = Expression.Parameter(typeof<IQueryable<'a>>)
 
     let body = toExpression typeof<'a> parameter node

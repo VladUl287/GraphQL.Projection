@@ -1,4 +1,4 @@
-﻿module GraphQLOp
+﻿module GraphQLSystem
 
 open System
 open TypeSystem
@@ -110,11 +110,3 @@ module Operations =
         | InlineFragmentNode(typeCondition, directives, selections) -> 
             let processedSelections = processSelections targetType inspector selections
             InlineFragmentNode(typeCondition, directives, processedSelections)
-
-type GraphQLNormalizer = GraphQLOp<GraphQLNode> -> GraphQLOp<GraphQLNode>
-
-type GraphQLOperations = {
-    Normilize: GraphQLNormalizer
-    Interpret: GraphQLOp<GraphQLNode> -> GraphQLNode
-}
-
