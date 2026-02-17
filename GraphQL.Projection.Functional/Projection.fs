@@ -6,33 +6,28 @@ open GraphQLSystem
 open ExpressionBuilder
 open GraphQLOp.Operations
 
-type GraphQLPipeline = GraphQLOp<GraphQLNode> -> GraphQLNode
-type QueryBuilderFactory<'a> = GraphQLNode -> Builder<'a>
+type GraphInterpreter = GraphQLOp<GraphQLNode> -> GraphQLNode
+type BuilderFactory<'a> = GraphQLNode -> Builder<'a>
 
-type QueryProjectionContext<'a> = {
-    graphQLPipeline: GraphQLPipeline 
-    createQueryBuilder: QueryBuilderFactory<'a>
+type ProjectionContext<'a> = {
+    interpret: GraphInterpreter 
+    build: BuilderFactory<'a>
 }
 
-let project<'a> (ctx: QueryProjectionContext<'a>) (ast: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> =
-    let builder = ast |> ctx.graphQLPipeline |> ctx.createQueryBuilder
+let project<'a> (ctx: ProjectionContext<'a>) (ast: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> =
+    let builder = ast |> ctx.interpret |> ctx.build
     builder.Invoke(query)
-
-let projectTo<'a> (ast: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> =
-    let builderCtx: BuilderContext = {
-        typeInspector = TypeSystem.defaultInspector
-        typeFactory = AnonymousTypeBuilder.createAnonymousType
-    }
-
-    let pipeline: GraphQLPipeline = fun op -> 
-        op
+   
+let defaultContext<'a>: ProjectionContext<'a> = {
+    interpret = fun operation -> 
+        operation
         |> map prune
         |> map (flatten typeof<'a> TypeSystem.defaultInspector)
         |> interpret
-
-    let projectionCtx: QueryProjectionContext<'a> = {
-        graphQLPipeline = pipeline
-        createQueryBuilder = builderFactory<'a> builderCtx
+    build = builderFactory<'a> {
+        typeInspector = TypeSystem.defaultInspector
+        typeFactory = AnonymousTypeBuilder.createAnonymousType
     }
+}
 
-    project<'a> projectionCtx ast query
+let projectTo<'a> (ast: GraphQLOp<GraphQLNode>) (query: IQueryable<'a>): IQueryable<obj> = project<'a> defaultContext ast query
