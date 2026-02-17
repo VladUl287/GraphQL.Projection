@@ -15,26 +15,28 @@ type BuilderContext = {
 type Builder<'a> = Func<IQueryable<'a>, IQueryable<obj>>
 
 let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expression) (node: GraphQLNode): Result<Expression, string> = 
+    let getProperty (typ: Type) (name: string) = 
+        typ.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+
     match node with
         | FieldNode(name, _, _, _, selections) when List.isEmpty selections ->
-            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-            Ok(Expression.Property(param, property))
-        | FieldNode(name, args, _, _, selections) -> 
-            let propertyInfo = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-            
-            let sourceExpr = 
-                if isNull propertyInfo then 
-                    param 
-                else 
-                    Expression.Property(param, propertyInfo)
+            match getProperty currentType name with 
+            | null -> Error $"Property '{name}' not found on type '{currentType.Name}'"
+            | property -> Ok(Expression.Property(param, property))
 
-            let underlyingType = 
-                if ctx.typeInspector.isCollection sourceExpr.Type 
-                then ctx.typeInspector.getElementType sourceExpr.Type
-                else Some sourceExpr.Type
+        | FieldNode(name, args, _, _, selections) -> 
+            let propertyAccess = 
+                match getProperty currentType name with 
+                | null -> param
+                | property -> Expression.Property(param, property)
+
+            let objectType = 
+                if ctx.typeInspector.isCollection propertyAccess.Type then 
+                    ctx.typeInspector.getElementType propertyAccess.Type
+                else Some propertyAccess.Type
                 |> Option.get
-            
-            let properties = getPropertiesTypes ctx.typeInspector selections underlyingType
+                            
+            let properties = getPropertiesTypes ctx.typeInspector selections objectType
             let anonType = ctx.typeFactory properties
             let ctor = anonType.GetConstructors().[0]
             let typeProperties = anonType.GetProperties()
@@ -42,7 +44,7 @@ let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expressio
             let bindings = 
                 selections 
                 |> Result.traverse (fun selection ->
-                    toExpression ctx underlyingType sourceExpr selection
+                    toExpression ctx objectType propertyAccess selection
                 )
                 |> Result.map(fun exprList ->
                     exprList
@@ -55,11 +57,11 @@ let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expressio
                 | Ok bindings ->  
                     let memberInit = Expression.MemberInit(Expression.New(ctor), bindings) :> Expression
 
-                    if ctx.typeInspector.isCollection sourceExpr.Type
+                    if ctx.typeInspector.isCollection propertyAccess.Type
                     then 
-                        let subParameter = Expression.Parameter(underlyingType)
+                        let subParameter = Expression.Parameter(objectType)
 
-                        let collectionType = ctx.typeInspector.getCollectionType sourceExpr.Type 
+                        let collectionType = ctx.typeInspector.getCollectionType propertyAccess.Type 
 
                         let selectMethod = 
                             collectionType.Value.GetMethods()
@@ -67,11 +69,11 @@ let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expressio
                                 m.Name = "Select" && 
                                 m.GetParameters().Length = 2)
     
-                        let selectMethod = selectMethod.MakeGenericMethod(underlyingType, memberInit.Type)
+                        let selectMethod = selectMethod.MakeGenericMethod(objectType, memberInit.Type)
     
                         let lambda = Expression.Lambda(memberInit, subParameter)
     
-                        Ok (Expression.Call(selectMethod, sourceExpr, lambda))
+                        Ok (Expression.Call(selectMethod, propertyAccess, lambda))
                     else Ok memberInit
                 | Error err -> Error err
         | _ -> 
