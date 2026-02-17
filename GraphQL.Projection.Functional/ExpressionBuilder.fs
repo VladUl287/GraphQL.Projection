@@ -14,70 +14,74 @@ type BuilderContext = {
 }
 type Builder<'a> = Func<IQueryable<'a>, IQueryable<obj>>
 
-let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expression) (node: GraphQLNode): Expression = 
+let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expression) (node: GraphQLNode): Result<Expression, string> = 
     match node with
         | FieldNode(name, _, _, _, selections) when List.isEmpty selections ->
             let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-            Expression.Property(param, property) :> Expression
-        | FieldNode(name, args, alias, directives, selections) -> 
-            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+            Ok(Expression.Property(param, property))
+        | FieldNode(name, args, _, _, selections) -> 
+            let propertyInfo = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
             
-            let valueAccess = 
-                if isNull property then param 
-                else Expression.Property(param, property)
+            let sourceExpr = 
+                if isNull propertyInfo then 
+                    param 
+                else 
+                    Expression.Property(param, propertyInfo)
 
-            let propertyType = 
-                if ctx.typeInspector.isCollection valueAccess.Type 
-                then ctx.typeInspector.getElementType valueAccess.Type
-                else Some valueAccess.Type
-                |> Option.get //
+            let underlyingType = 
+                if ctx.typeInspector.isCollection sourceExpr.Type 
+                then ctx.typeInspector.getElementType sourceExpr.Type
+                else Some sourceExpr.Type
+                |> Option.get
             
-            let properties = getPropertiesTypes ctx.typeInspector selections propertyType
-    
-            let anonType = createAnonymousType properties
-            
+            let properties = getPropertiesTypes ctx.typeInspector selections underlyingType
+            let anonType = ctx.typeFactory properties
             let ctor = anonType.GetConstructors().[0]
-            
-            let members = 
-                selections 
-                |> List.map (fun selection ->
-                    toExpression ctx propertyType valueAccess selection
-                )
-                                
+            let typeProperties = anonType.GetProperties()
+
             let bindings = 
-                members
-                |> List.mapi (fun index exp ->
-                    Expression.Bind(anonType.GetProperties()[index], exp) :> MemberBinding
+                selections 
+                |> Result.traverse (fun selection ->
+                    toExpression ctx underlyingType sourceExpr selection
                 )
-    
-            let memberInit = Expression.MemberInit(Expression.New(ctor), bindings) :> Expression
+                |> Result.map(fun exprList ->
+                    exprList
+                    |> List.mapi (fun index exp ->
+                        Expression.Bind(typeProperties[index], exp) :> MemberBinding
+                    )
+                )
+                
+            match bindings with
+                | Ok bindings ->  
+                    let memberInit = Expression.MemberInit(Expression.New(ctor), bindings) :> Expression
 
-            if ctx.typeInspector.isCollection valueAccess.Type
-            then 
-                let subParameter = Expression.Parameter(propertyType)
+                    if ctx.typeInspector.isCollection sourceExpr.Type
+                    then 
+                        let subParameter = Expression.Parameter(underlyingType)
 
-                let collectionType = ctx.typeInspector.getCollectionType valueAccess.Type 
+                        let collectionType = ctx.typeInspector.getCollectionType sourceExpr.Type 
 
-                let selectMethod = 
-                    collectionType.Value.GetMethods()
-                    |> Array.find (fun m -> 
-                        m.Name = "Select" && 
-                        m.GetParameters().Length = 2)
+                        let selectMethod = 
+                            collectionType.Value.GetMethods()
+                            |> Array.find (fun m -> 
+                                m.Name = "Select" && 
+                                m.GetParameters().Length = 2)
     
-                let selectMethod = selectMethod.MakeGenericMethod(propertyType, memberInit.Type)
+                        let selectMethod = selectMethod.MakeGenericMethod(underlyingType, memberInit.Type)
     
-                let lambda = Expression.Lambda(memberInit, subParameter)
+                        let lambda = Expression.Lambda(memberInit, subParameter)
     
-                Expression.Call(selectMethod, valueAccess, lambda)
-            else memberInit
+                        Ok (Expression.Call(selectMethod, sourceExpr, lambda))
+                    else Ok memberInit
+                | Error err -> Error err
         | _ -> 
-            Expression.Empty()
+            Error ""
     
 let builderFactory<'a> (ctx: BuilderContext) (node: GraphQLNode): Builder<'a> =
     let parameter = Expression.Parameter(typeof<IQueryable<'a>>)
 
-    let body = toExpression ctx typeof<'a> parameter node
+    let result = toExpression ctx typeof<'a> parameter node
     
-    let result = Expression.Lambda<Builder<'a>>(body, parameter)
-
-    result.Compile()
+    match result with 
+        | Ok body -> Expression.Lambda<Builder<'a>>(body, parameter).Compile()
+        | Error err -> failwith(err)
