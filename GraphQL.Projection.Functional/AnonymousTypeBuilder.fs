@@ -4,11 +4,9 @@ open System
 open System.Reflection.Emit
 open System.Reflection
 
-type AnonymousTypeFactory = {
-    CreateAnonymousType: (string * Type) list -> Type
-}
+type AnonymousTypeFactory = (string * Type) list -> Type
 
-let createAnonymousType(properties: (string * Type) list) =
+let createAnonymousType(properties: (string * Type) list): Type =
     let assemblyName = AssemblyName("DynamicTypes")
     let assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.RunAndCollect)
     let moduleBuilder = assemblyBuilder.DefineDynamicModule("MainModule")

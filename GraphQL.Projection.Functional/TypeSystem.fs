@@ -6,11 +6,11 @@ open System.Collections.Generic
 open System.Linq
 
 type TypeInspector = {
-    IsPrimitive: Type -> bool
-    IsCollection: Type -> bool
-    IsSubtypeOf: Type -> string -> bool
-    GetElementType: Type -> Type option
-    GetCollectionType: Type -> Type option
+    isPrimitive: Type -> bool
+    isCollection: Type -> bool
+    isSubtypeOf: Type -> string -> bool
+    getElementType: Type -> Type option
+    getCollectionType: Type -> Type option
 }
 
 let defaultInspector: TypeInspector =
@@ -52,9 +52,9 @@ let defaultInspector: TypeInspector =
             None
 
     {
-        IsPrimitive = isPrimitive
-        IsSubtypeOf = isSubtypeOf
-        IsCollection = isCollection
-        GetElementType = getElementType
-        GetCollectionType = getCollectionType
+        isPrimitive = isPrimitive
+        isSubtypeOf = isSubtypeOf
+        isCollection = isCollection
+        getElementType = getElementType
+        getCollectionType = getCollectionType
     }

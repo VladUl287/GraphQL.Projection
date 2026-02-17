@@ -1,112 +1,91 @@
 ﻿module GraphQLSystem
 
 open System
+open System.Reflection
+open System.Collections
 open TypeSystem
-open GraphQLProcessing
 
-type GraphQLOp<'a> =
-    | Field of 
-        name: string * 
-        arguments: ArgumentNode list * 
-        alias: string option * 
-        directives: DirectiveNode list * 
-        selections: GraphQLOp<'a> list * 
-        next: (GraphQLNode -> 'a)
-    | InlineFragment of 
-        typeCondition: string option * 
-        directives: DirectiveNode list * 
-        selections: GraphQLOp<'a> list * 
-        next: (GraphQLNode -> 'a)
-
-module Operations =
-    let rec map (f: 'a -> 'b) (op: GraphQLOp<'a>) : GraphQLOp<'b> =
-        match op with
-        | Field(name, args, alias, directives, selections, next) -> Field(name, args, alias, directives, List.map (map f) selections, next >> f)
-        | InlineFragment(typeCondition, directives, selections, next) -> InlineFragment(typeCondition, directives, List.map (map f) selections, next >> f)
+type GraphQLNode =
+    | FieldNode of 
+         name: string * 
+         arguments: ArgumentNode list *
+         alias: string option * 
+         directives: DirectiveNode list * 
+         selections: GraphQLNode list
     
-    let field name args alias directives selections = 
-        Field(name, args, alias, directives, selections, fun node -> node)
-    
-    let inlineFragment typeCondition directives selections = 
-        InlineFragment(typeCondition, directives, selections, fun node -> node)
-    
-    let rec interpret (op: GraphQLOp<GraphQLNode>) : GraphQLNode =
-        match op with
-        | Field(name, args, alias, directives, selections, next) -> 
-            let nodes = selections |> List.map interpret
-            next (FieldNode(name, args, alias, directives, nodes))
-        | InlineFragment(typeCondition, directives, selections, next) -> 
-            let nodes = selections |> List.map interpret
-            next (InlineFragmentNode(typeCondition, directives, nodes))
+    | InlineFragmentNode of 
+         typeCondition: string option *
+         directives: DirectiveNode list * 
+         selections: GraphQLNode list
 
-    let rec prune (node: GraphQLNode) : GraphQLNode =
+    //| FragmentSpread of 
+    //   name: string * 
+    //   directives: DirectiveNode list
 
-        let evaluateDirectives (directives: DirectiveNode list) =
-            let conditionalDirectives, otherDirectives = 
-                directives |> List.partition (fun d -> 
-                    d.name = "@include" || d.name = "@skip")
-            
-            let shouldSkip =
-                conditionalDirectives.Length > 0 &&
-                conditionalDirectives |> List.forall (fun directive ->
-                    match directive.arguments |> List.tryHead with
-                    | Some arg ->
-                        match directive.name, arg.value with
-                        | "@include", BooleanValue false -> true
-                        | "@skip", BooleanValue true -> true    
-                        | "@include", BooleanValue true -> false
-                        | "@skip", BooleanValue false -> false  
-                        | _ -> false
-                    | None -> false)  
-            
-            (shouldSkip, otherDirectives)
-    
-        let processSelections selections =
-            selections
-            |> List.choose (fun selection ->
-                match selection with
-                | FieldNode(name, args, alias, directives, subSelections) ->
-                    let (shouldSkip, filteredDirectives) = evaluateDirectives directives
-                    if shouldSkip 
-                    then None 
-                    else Some (FieldNode(name, args, alias, filteredDirectives, subSelections))
-                        
-                | InlineFragmentNode(typeCondition, directives, subSelections) ->
-                    let (shouldSkip, filteredDirectives) = evaluateDirectives directives
-                    if shouldSkip 
-                    then None 
-                    else Some (InlineFragmentNode(typeCondition, filteredDirectives, subSelections))
-            )
-        
-        match node with 
-        | FieldNode(name, args, alias, directives, selections) ->
-            FieldNode(name, args, alias, directives, processSelections selections)
+    //| FragmentDefinition of 
+    //    name: string * 
+    //    typeCondition: string * 
+    //    directives: DirectiveNode list * 
+    //    selectionSet: GraphQLNode list
 
-        | InlineFragmentNode(typeCondition, directives, selections) ->
-            InlineFragmentNode(typeCondition, directives, processSelections selections)
+    //| OperationDefinitionNode of
+    //    operationType: OperationType *
+    //    name: string option *
+    //    variableDefinitions: VariableDefinitionNode list * 
+    //    directives: DirectiveNode list * 
+    //    selections: GraphQLNode list
 
-    let rec flatten (targetType: Type) (inspector: TypeInspector) (node: GraphQLNode): GraphQLNode =
+//and OperationType =
+//    | Query
+//    | Mutation
+//    | Subscription
 
-        let rec processSelections (targetType: Type) (inspector: TypeInspector)  (selections: GraphQLNode list) =
-            selections 
-            |> List.collect (fun selection ->
-                match selection with
-                | InlineFragmentNode(typeCondition, _, selections) ->
-                    match typeCondition with
-                    | Some conditionType ->
-                        if inspector.IsSubtypeOf targetType conditionType then
-                            selections
-                        else
-                            []
-                    | None ->
-                        selections
-                | other -> [other]
-            )
+//and VariableDefinitionNode = {
+//    Name: string
+//    Type: ValueNode
+//    DefaultValue: ArgumentNode option
+//}
 
-        match node with
-        | FieldNode(name, args, alias, directives, selections) ->
-            let processedSelections = processSelections targetType inspector selections
-            FieldNode(name, args, alias, directives, processedSelections)
-        | InlineFragmentNode(typeCondition, directives, selections) -> 
-            let processedSelections = processSelections targetType inspector selections
-            InlineFragmentNode(typeCondition, directives, processedSelections)
+and ArgumentNode = {
+    name: string
+    value: ValueNode
+}
+
+and DirectiveNode = { 
+    name: string; 
+    arguments: ArgumentNode list 
+}
+
+and ValueNode =
+    | Variable of name: string
+    | IntValue of value: int
+    | StringValue of value: string
+    | BooleanValue of value: bool
+    | NullValue
+    | EnumValue of value: string
+    | ListValue of values: ValueNode list
+    | ObjectValue of fields: (string * ValueNode) list
+
+type NodeProcessor = {
+    GetPropertyTypes: GraphQLNode list -> Type -> (string * Type) list
+}
+
+let getPropertiesTypes (inspector: TypeInspector) (selections: GraphQLNode list) (targetType: Type): (string * Type) list =
+    selections 
+        |> List.choose (fun node -> 
+            match node with
+            | FieldNode (name, _, alias, _, _) -> 
+                let property = targetType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                if property <> null then
+                    let propertyType = property.PropertyType
+                    let finalType = 
+                        match propertyType with
+                            | t when inspector.isPrimitive t -> t
+                            | t when inspector.isCollection t -> typeof<IEnumerable>
+                            | _ -> typeof<obj>
+                    let fieldName = if alias.IsSome then alias.Value else property.Name
+                    Some (fieldName, finalType)
+                else
+                    None
+            | _ -> None
+        )

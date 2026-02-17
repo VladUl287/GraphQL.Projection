@@ -1,7 +1,8 @@
 ﻿using static GraphQLSystem;
 using Microsoft.FSharp.Core;
-using static GraphQLProcessing;
-using static QueryProjection;
+using static GraphQLOp;
+using static Projection;
+using static ExpressionSystem;
 
 namespace GraphQL.Projection;
 
@@ -23,9 +24,11 @@ public static class QueryExtensions
         Func<GraphQLOp<GraphQLNode>, GraphQLNode> interpret = Operations.interpret;
         var graphQLOperations = new GraphQLOperations(FuncConvert.FromFunc(normilize), FuncConvert.FromFunc(interpret));
 
-        var expressionContext = new ExpressionSystem.ExpressionContext(TypeSystem.defaultInspector, null, null);
+        var expressionContext = new ExpressionContext(TypeSystem.defaultInspector, null, null);
 
-        var queryContext = new QueryContext<T>(graphQLOperations, ExpressionSystem.defaultFactory<T>(), expressionContext);
+        Func<ExpressionContext, GraphQLNode, Func<IQueryable<T>, IQueryable<object>>> builder = builderFactory<T>;
+
+        var queryContext = new QueryContext<T>(graphQLOperations, FuncConvert.FromFunc(builder), expressionContext);
 
         return project<T>(queryContext, op, query);
     }

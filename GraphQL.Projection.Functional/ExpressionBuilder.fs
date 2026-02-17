@@ -1,21 +1,21 @@
 ﻿module ExpressionSystem
 
 open System
-open GraphQLProcessing
-open System.Linq.Expressions
 open System.Linq
 open System.Reflection
+open System.Linq.Expressions
+open GraphQLSystem
+open TypeSystem
 open AnonymousTypeBuilder
 
 type ExpressionContext = {
-    TypeInspector: TypeSystem.TypeInspector
-    NodeProcessor: GraphQLProcessing.NodeProcessor
-    AnonymousTypeFactory: AnonymousTypeBuilder.AnonymousTypeFactory
+    typeInspector: TypeInspector
+    nodeProcessor: NodeProcessor
+    typeFactory: AnonymousTypeFactory
 }
 
-type BuilderFactory<'a> = {
-    Create: ExpressionContext -> GraphQLNode -> Func<IQueryable<'a>, IQueryable<obj>>
-}
+type Builder<'a> = Func<IQueryable<'a>, IQueryable<obj>>
+type BuilderFactory<'a> = ExpressionContext -> GraphQLNode -> Builder<'a>
 
 let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode): Expression = 
     match node with
@@ -29,8 +29,8 @@ let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode)
                 else Expression.Property(param, property)
             let accessType = accessExpr.Type
                 
-            if TypeSystem.defaultInspector.IsCollection accessType then 
-                let elementType = (TypeSystem.defaultInspector.GetElementType accessType).Value
+            if TypeSystem.defaultInspector.isCollection accessType then 
+                let elementType = (TypeSystem.defaultInspector.getElementType accessType).Value
     
                 let properties = getPropertiesTypes TypeSystem.defaultInspector selections elementType
                 
@@ -55,7 +55,7 @@ let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode)
     
                 let memberInit = Expression.MemberInit(Expression.New(ctor), bindings)
     
-                let collectionType = TypeSystem.defaultInspector.GetCollectionType accessType
+                let collectionType = TypeSystem.defaultInspector.getCollectionType accessType
 
                 let selectMethod = 
                     collectionType.Value.GetMethods()
@@ -91,15 +91,11 @@ let rec toExpression (currentType: Type) (param: Expression) (node: GraphQLNode)
         | InlineFragmentNode(_, _, _) -> 
            Expression.Empty()
     
-let createFactory<'a> (ctx: ExpressionContext) (node: GraphQLNode): Func<IQueryable<'a>, IQueryable<obj>> =
+let builderFactory<'a> (ctx: ExpressionContext) (node: GraphQLNode): Builder<'a> =
     let parameter = Expression.Parameter(typeof<IQueryable<'a>>)
 
     let body = toExpression typeof<'a> parameter node
     
-    let result = Expression.Lambda<Func<IQueryable<'a>, IQueryable<obj>>>(body, parameter)
+    let result = Expression.Lambda<Builder<'a>>(body, parameter)
 
     result.Compile()
-
-let defaultFactory: BuilderFactory<'a> = {
-    Create = createFactory<'a>
-}

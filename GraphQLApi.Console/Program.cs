@@ -1,16 +1,16 @@
-﻿using GraphQL.Projection;
-using GraphQLApi.Console.Data;
+﻿using GraphQLApi.Console.Data;
 using Microsoft.EntityFrameworkCore;
-using System.Xml.Linq;
 using static GraphQLSystem;
+using static GraphQLOp;
+using GraphQL.Projection;
 
 var userQuery =
     Operations.field("user", [], default, [], [
         Operations.field("id", [], default,
         [
-            new GraphQLProcessing.DirectiveNode("@skip",
+            new DirectiveNode("@skip",
             [
-                new GraphQLProcessing.ArgumentNode("if", GraphQLProcessing.ValueNode.BooleanValue.NewBooleanValue(true))
+                new ArgumentNode("if", ValueNode.BooleanValue.NewBooleanValue(true))
             ])
         ], []),
         Operations.field("createdAt", [], default, [], []),
@@ -78,7 +78,8 @@ var userQuery =
 
 var query = new AppDatabaseContext()
     .Users
-    .ProjectTo(userQuery);
+    .ProjectTo(userQuery)
+    ;
 
 Console.WriteLine(query.ToQueryString());
 

@@ -1,6 +1,5 @@
-﻿open GraphQLProcessing
-open GraphQLSystem.Operations
-open System.Text.Json
+﻿open GraphQLSystem
+open GraphQLOp.Operations
 
 let userQuery = 
     field "user" [] None [] [
