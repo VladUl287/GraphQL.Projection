@@ -27,44 +27,61 @@ let createExpressionBuilder (ctx: BuilderContext) (processors: Processors) =
     null
 
 let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
-    //args
-    //    |> List.iter (fun item -> 
-    //        let name = item.name
 
-    //        if name = "filter" then
-    //            let value = item.value
-    //            ()
-    //        elif name = "sort" then
-    //            let value = item.value
-    //            ()
-    //        elif name = "pagination" then
-    //            let value = item.value
-    //            ()
-    //        else
-    //            ()
-    //        )
+    let processFilter (filterValue: ValueNode) (expression: Expression): Expression = 
+        let objectType = 
+            defaultInspector.getElementType expression.Type
+            |> Option.get
+
+        let parameter = Expression.Parameter(objectType)
+
+        let collectionType = defaultInspector.getCollectionType expression.Type 
+
+        let whereMethod = 
+            collectionType.Value.GetMethods()
+            |> Array.find (fun m -> 
+                m.Name = "Where" && 
+                m.GetParameters().Length = 2)
+
+        let whereMethod = whereMethod.MakeGenericMethod(objectType)
+
+        let predicate = 
+            match filterValue with 
+            | ObjectValue filterValue -> 
+                filterValue
+                |> List.fold 
+                    (fun filterAcc filterValue -> 
+                        let (filterName, valueNode) = filterValue
+
+                        //match filterName with
+                        //| "AND" -> filterAcc
+                        //| "OR" -> filterAcc
+                        //| _ -> filterAcc
+                        
+                        let property = objectType.GetProperty(filterName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                        if isNull property then
+                            filterAcc
+                        else
+                            match valueNode with
+                            | StringValue sV -> 
+                                let access = Expression.Property(parameter, property)
+                                let value = Expression.Constant(sV)
+                                let equal = Expression.Equal(access, value)
+                                Expression.And(filterAcc, equal) :> Expression
+                            | _ -> filterAcc
+                    ) (Expression.Constant(true) :> Expression)
+            | _ -> expression
+            
+        let lambda = Expression.Lambda(predicate, parameter)
+        Expression.Call(whereMethod, expression, lambda)
 
     args
     |> List.fold 
         (fun acc arg -> 
             let name = arg.name
-
             if name = "filter" then
                 let value = arg.value
-                match value with 
-                | ObjectValue filterValue -> 
-                    filterValue
-                    |> List.fold 
-                        (fun filterAcc filterValue -> 
-                            let (filterName, valueNode) = filterValue
-                            let property = expression.Type.GetProperty(filterName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                            if isNull property then
-                                filterAcc
-                            else
-                                
-                                filterAcc
-                        ) acc
-                | _ -> acc
+                processFilter value acc
             else
                 acc
         ) expression
@@ -84,7 +101,7 @@ let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expressio
                 | null -> param
                 | property -> Expression.Property(param, property)
                 |> ctx.processors.processArguments args
-                |> ctx.processors.processDirectives directives
+                //|> ctx.processors.processDirectives directives
 
             let objectType = 
                 if ctx.typeInspector.isCollection propertyAccess.Type then 
@@ -96,11 +113,12 @@ let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expressio
             let anonType = ctx.typeFactory properties
             let ctor = anonType.GetConstructors().[0]
             let typeProperties = anonType.GetProperties()
+            let subParameter = Expression.Parameter(objectType)
 
             let bindings = 
                 selections 
                 |> Result.traverse (fun selection ->
-                    toExpression ctx objectType propertyAccess selection
+                    toExpression ctx objectType subParameter selection
                 )
                 |> Result.map(fun exprList ->
                     exprList
@@ -115,8 +133,6 @@ let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expressio
 
                     if ctx.typeInspector.isCollection propertyAccess.Type
                     then 
-                        let subParameter = Expression.Parameter(objectType)
-
                         let collectionType = ctx.typeInspector.getCollectionType propertyAccess.Type 
 
                         let selectMethod = 

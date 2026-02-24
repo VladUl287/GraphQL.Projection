@@ -5,21 +5,28 @@ using static GraphQLOp;
 using GraphQL.Projection;
 
 var userQuery =
-    Operations.field("user", [], default, [], [
+    Operations.field("user", [
+            new ArgumentNode("filter", ValueNode.NewObjectValue([
+                new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test"))
+            ]))
+        ], default, [], [
         Operations.field("id", [], default,
-        [
-            new DirectiveNode("@skip",
-            [
-                new ArgumentNode("if", ValueNode.BooleanValue.NewBooleanValue(true))
-            ])
-        ], []),
+        //[
+        //    new DirectiveNode("@skip",
+        //    [
+        //        new ArgumentNode("if", ValueNode.BooleanValue.NewBooleanValue(true))
+        //    ])
+        //]
+        []
+        , 
+        []),
         Operations.field("createdAt", [], default, [], []),
-        Operations.field("role", [], default, [], [
-            Operations.field("name", [], default, [], []),
-            //Operations.inlineFragment("ExternalRole", [], [
-            //    Operations.field("source", [], default, [], [])
-            //])
-        ]),
+        //Operations.field("role", [], default, [], [
+        //    Operations.field("name", [], default, [], []),
+        //    //Operations.inlineFragment("ExternalRole", [], [
+        //    //    Operations.field("source", [], default, [], [])
+        //    //])
+        //]),
         //Operations.field("products", [], default, [], [
         //    Operations.field("number", [], default, [], []),
         //    Operations.field("createdAt", [], default, [], []),
