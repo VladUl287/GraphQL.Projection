@@ -8,29 +8,83 @@ open GraphQLSystem
 open TypeSystem
 open AnonymousTypeBuilder
 
+type ArgumentProcessor = ArgumentNode list -> Expression -> Expression
+type DirectiveProcessor = DirectiveNode list -> Expression -> Expression
+
+type Processors = {
+    processArguments: ArgumentProcessor
+    processDirectives: DirectiveProcessor
+}
+
 type BuilderContext = {
     typeInspector: TypeInspector
     typeFactory: AnonymousTypeFactory
+    processors: Processors
 }
 type Builder<'a> = Func<IQueryable<'a>, IQueryable<obj>>
 
-type ArgumentProcessor = BuilderContext -> Type -> Expression -> GraphQLNode -> Expression option
+let createExpressionBuilder (ctx: BuilderContext) (processors: Processors) =
+    null
+
+let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
+    //args
+    //    |> List.iter (fun item -> 
+    //        let name = item.name
+
+    //        if name = "filter" then
+    //            let value = item.value
+    //            ()
+    //        elif name = "sort" then
+    //            let value = item.value
+    //            ()
+    //        elif name = "pagination" then
+    //            let value = item.value
+    //            ()
+    //        else
+    //            ()
+    //        )
+
+    args
+    |> List.fold 
+        (fun acc arg -> 
+            let name = arg.name
+
+            if name = "filter" then
+                let value = arg.value
+                match value with 
+                | ObjectValue filterValue -> 
+                    filterValue
+                    |> List.fold 
+                        (fun filterAcc filterValue -> 
+                            let (filterName, valueNode) = filterValue
+                            let property = expression.Type.GetProperty(filterName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                            if isNull property then
+                                filterAcc
+                            else
+                                
+                                filterAcc
+                        ) acc
+                | _ -> acc
+            else
+                acc
+        ) expression
 
 let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expression) (node: GraphQLNode): Result<Expression, string> = 
-    let getProperty (typ: Type) (name: string) = 
-        typ.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-
     match node with
         | FieldNode(name, _, _, _, selections) when List.isEmpty selections ->
-            match getProperty currentType name with 
+            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+            match property with 
             | null -> Error $"Property '{name}' not found on type '{currentType.Name}'"
             | property -> Ok(Expression.Property(param, property))
 
-        | FieldNode(name, args, _, _, selections) -> 
+        | FieldNode(name, args, _, directives, selections) -> 
+            let property = currentType.GetProperty(name, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
             let propertyAccess = 
-                match getProperty currentType name with 
+                match property with 
                 | null -> param
                 | property -> Expression.Property(param, property)
+                |> ctx.processors.processArguments args
+                |> ctx.processors.processDirectives directives
 
             let objectType = 
                 if ctx.typeInspector.isCollection propertyAccess.Type then 
@@ -74,7 +128,7 @@ let rec toExpression (ctx: BuilderContext) (currentType: Type) (param: Expressio
                         let selectMethod = selectMethod.MakeGenericMethod(objectType, memberInit.Type)
     
                         let lambda = Expression.Lambda(memberInit, subParameter)
-    
+
                         Ok (Expression.Call(selectMethod, propertyAccess, lambda))
                     else Ok memberInit
                 | Error err -> Error err

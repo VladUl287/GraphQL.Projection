@@ -27,6 +27,10 @@ let defaultContext<'a>: ProjectionContext<'a> = {
     build = builderFactory<'a> {
         typeInspector = TypeSystem.defaultInspector
         typeFactory = AnonymousTypeBuilder.createAnonymousType
+        processors = {
+            processArguments = processArgs
+            processDirectives = fun directives expression -> expression
+        }
     }
 }
 
