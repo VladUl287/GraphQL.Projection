@@ -30,13 +30,17 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
     let isEmpty (expr: Expression): bool = (expr = null || expr :? DefaultExpression)
 
+    let useOperator (name: string) (left: Expression) (right: Expression): Expression =
+        
+        Expression.Equal(left, right)
+
     let rec buildPredicate (nodeName: string) (nodeValue: ValueNode) (objectType: Type) (propAccess: Expression) =
         match nodeValue with 
             | StringValue strValue -> 
                 let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 let access = Expression.Property(propAccess, property)
                 let value = Expression.Constant(strValue)
-                Expression.Equal(access, value) :> Expression
+                useOperator nodeName access value
             | IntValue intValue -> 
                 let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 let access = Expression.Property(propAccess, property)

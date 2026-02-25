@@ -11,7 +11,11 @@ var userQuery =
                 //new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test"))
                 new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
                     ValueNode.NewObjectValue([
-                        new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
+                        //new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
+                        new Tuple<string, ValueNode>("id",  ValueNode.NewObjectValue([
+                            new Tuple<string, ValueNode>("gte", ValueNode.NewIntValue(5)),
+                            //new Tuple<string, ValueNode>("lte", ValueNode.NewIntValue(10)),
+                        ])),
                     ]),
                     ValueNode.NewObjectValue([
                         new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),

@@ -10,6 +10,7 @@ public class BaseUser<T> where T : Role
 
 public class User : BaseUser<Role>
 {
+    public string Expertise { get; init; }
     public DateTime CreatedAt { get; init; }
     public ICollection<Product> Products { get; init; } = [];
 }
