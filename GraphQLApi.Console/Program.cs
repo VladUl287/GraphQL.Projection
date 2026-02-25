@@ -7,7 +7,16 @@ using GraphQL.Projection;
 var userQuery =
     Operations.field("user", [
             new ArgumentNode("filter", ValueNode.NewObjectValue([
-                new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test"))
+                //new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
+                //new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test"))
+                new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
+                    ValueNode.NewObjectValue([
+                        new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
+                    ]),
+                    ValueNode.NewObjectValue([
+                        new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),
+                    ]),
+                ]))
             ]))
         ], default, [], [
         Operations.field("id", [], default,
@@ -18,7 +27,7 @@ var userQuery =
         //    ])
         //]
         []
-        , 
+        ,
         []),
         Operations.field("createdAt", [], default, [], []),
         //Operations.field("role", [], default, [], [

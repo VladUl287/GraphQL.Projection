@@ -28,6 +28,38 @@ let createExpressionBuilder (ctx: BuilderContext) (processors: Processors) =
 
 let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
+    let rec buildPredicate (nodeName: string) (nodeValue: ValueNode) (objectType: Type) (propAccess: Expression) =
+        match nodeValue with 
+            | StringValue strValue -> 
+                let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let access = Expression.Property(propAccess, property)
+                let value = Expression.Constant(strValue)
+                Expression.Equal(access, value) :> Expression
+            | IntValue intValue -> 
+                let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let access = Expression.Property(propAccess, property)
+                let value = Expression.Constant(intValue)
+                Expression.Equal(access, value) :> Expression
+            | ListValue listValue ->
+                listValue
+                |> List.fold 
+                    (fun acc listNode -> 
+                        let predicate = buildPredicate String.Empty listNode objectType propAccess
+                        match nodeName with
+                        | "AND" -> Expression.And(acc, predicate)
+                        | "OR" -> Expression.Or(acc, predicate)
+                        | _ -> acc
+                    ) (Expression.Constant(true) :> Expression)
+            | ObjectValue objectValue -> 
+                objectValue
+                |> List.fold 
+                    (fun acc objectValueNode -> 
+                        let (ovnName, ovnValue) = objectValueNode
+                        let predicate = buildPredicate ovnName ovnValue objectType propAccess
+                        Expression.And(acc, predicate)
+                    ) (Expression.Constant(true) :> Expression)
+            | _ -> propAccess
+
     let processFilter (filterValue: ValueNode) (expression: Expression): Expression = 
         let objectType = 
             defaultInspector.getElementType expression.Type
@@ -45,32 +77,7 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
         let whereMethod = whereMethod.MakeGenericMethod(objectType)
 
-        let predicate = 
-            match filterValue with 
-            | ObjectValue filterValue -> 
-                filterValue
-                |> List.fold 
-                    (fun filterAcc filterValue -> 
-                        let (filterName, valueNode) = filterValue
-
-                        //match filterName with
-                        //| "AND" -> filterAcc
-                        //| "OR" -> filterAcc
-                        //| _ -> filterAcc
-                        
-                        let property = objectType.GetProperty(filterName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                        if isNull property then
-                            filterAcc
-                        else
-                            match valueNode with
-                            | StringValue sV -> 
-                                let access = Expression.Property(parameter, property)
-                                let value = Expression.Constant(sV)
-                                let equal = Expression.Equal(access, value)
-                                Expression.And(filterAcc, equal) :> Expression
-                            | _ -> filterAcc
-                    ) (Expression.Constant(true) :> Expression)
-            | _ -> expression
+        let predicate = buildPredicate String.em filterValue objectType parameter
             
         let lambda = Expression.Lambda(predicate, parameter)
         Expression.Call(whereMethod, expression, lambda)
