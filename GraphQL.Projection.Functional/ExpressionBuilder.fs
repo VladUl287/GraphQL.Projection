@@ -28,6 +28,8 @@ let createExpressionBuilder (ctx: BuilderContext) (processors: Processors) =
 
 let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
+    let isEmpty (expr: Expression): bool = (expr = null || expr :? DefaultExpression)
+
     let rec buildPredicate (nodeName: string) (nodeValue: ValueNode) (objectType: Type) (propAccess: Expression) =
         match nodeValue with 
             | StringValue strValue -> 
@@ -40,24 +42,40 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                 let access = Expression.Property(propAccess, property)
                 let value = Expression.Constant(intValue)
                 Expression.Equal(access, value) :> Expression
+            | BooleanValue boolValue -> 
+                let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let access = Expression.Property(propAccess, property)
+                let value = Expression.Constant(boolValue)
+                Expression.Equal(access, value) :> Expression
             | ListValue listValue ->
                 listValue
                 |> List.fold 
                     (fun acc listNode -> 
                         let predicate = buildPredicate String.Empty listNode objectType propAccess
                         match nodeName with
-                        | "AND" -> Expression.And(acc, predicate)
-                        | "OR" -> Expression.Or(acc, predicate)
+                        | "AND" -> 
+                            if isEmpty acc then
+                                predicate
+                            else 
+                                Expression.AndAlso(acc, predicate)
+                        | "OR" -> 
+                            if isEmpty acc then
+                                predicate
+                            else 
+                                Expression.OrElse(acc, predicate)
                         | _ -> acc
-                    ) (Expression.Constant(true) :> Expression)
+                    ) (Expression.Empty() :> Expression)
             | ObjectValue objectValue -> 
                 objectValue
                 |> List.fold 
                     (fun acc objectValueNode -> 
                         let (ovnName, ovnValue) = objectValueNode
                         let predicate = buildPredicate ovnName ovnValue objectType propAccess
-                        Expression.And(acc, predicate)
-                    ) (Expression.Constant(true) :> Expression)
+                        if isEmpty acc then
+                            predicate
+                        else 
+                            Expression.AndAlso(acc, predicate)
+                    ) (Expression.Empty() :> Expression)
             | _ -> propAccess
 
     let processFilter (filterValue: ValueNode) (expression: Expression): Expression = 

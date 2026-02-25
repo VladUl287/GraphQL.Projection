@@ -4,6 +4,7 @@ public class BaseUser<T> where T : Role
 {
     public int Id { get; init; }
     public string? Name { get; init; }
+    public bool Active { get; init; }
     public T Role { get; init; }
 }
 

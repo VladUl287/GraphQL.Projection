@@ -7,7 +7,7 @@ using GraphQL.Projection;
 var userQuery =
     Operations.field("user", [
             new ArgumentNode("filter", ValueNode.NewObjectValue([
-                //new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
+                new Tuple<string, ValueNode>("active", ValueNode.NewBooleanValue(true)),
                 //new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test"))
                 new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
                     ValueNode.NewObjectValue([
