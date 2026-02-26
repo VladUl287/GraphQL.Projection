@@ -30,24 +30,33 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
     let isEmpty (expr: Expression): bool = (expr = null || expr :? DefaultExpression)
 
+    let processPrimitive (nodeName: string) (nodeValue: obj) (propAccess: Expression) =
+        let value = Expression.Constant(nodeValue)
+        match nodeName with 
+        | "eq" -> Expression.Equal(propAccess, value) :> Expression
+        | "ne" -> Expression.NotEqual(propAccess, value) :> Expression
+        | "gt" -> Expression.GreaterThan(propAccess, value) :> Expression
+        | "gte" -> Expression.GreaterThanOrEqual(propAccess, value) :> Expression
+        | "lt" -> Expression.LessThan(propAccess, value) :> Expression
+        | "lte" -> Expression.LessThanOrEqual(propAccess, value) :> Expression
+        //| "contains" -> Expression.Empty() :> Expression
+        //| "startsWith" -> Expression.Empty() :> Expression
+        //| "endsWith" -> Expression.Empty() :> Expression
+        //| "in" -> Expression.Empty() :> Expression
+        //| "nin" -> Expression.Empty() :> Expression
+        | _ -> 
+            let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+            let access = Expression.Property(propAccess, property)
+            Expression.Equal(access, value) :> Expression
+
     let rec buildPredicate (nodeName: string) (nodeValue: ValueNode) (propAccess: Expression) =
         match nodeValue with 
-            | StringValue strValue -> 
-                let value = Expression.Constant(strValue)
-                match nodeName with 
-                | "gte" -> Expression.GreaterThanOrEqual(propAccess, value) :> Expression
-                | _ -> 
-                    let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                    let access = Expression.Property(propAccess, property)
-                    Expression.Equal(access, value) :> Expression
-            | IntValue intValue -> 
-                let value = Expression.Constant(intValue)
-                match nodeName with 
-                | "gte" -> Expression.GreaterThanOrEqual(propAccess, value) :> Expression
-                | _ -> 
-                    let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                    let access = Expression.Property(propAccess, property)
-                    Expression.Equal(access, value) :> Expression
+            | StringValue strValue -> processPrimitive nodeName strValue propAccess
+            | IntValue intValue -> processPrimitive nodeName intValue propAccess
+            | BooleanValue boolValue -> processPrimitive nodeName boolValue propAccess
+            | EnumValue enumValue -> processPrimitive nodeName enumValue propAccess
+            | NullValue -> processPrimitive nodeName null propAccess
+            //| Variable variable -> processPrimitive nodeName enumValue propAccess
             | ListValue listValue ->
                 listValue
                 |> List.fold 
