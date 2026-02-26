@@ -30,32 +30,29 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
     let isEmpty (expr: Expression): bool = (expr = null || expr :? DefaultExpression)
 
-    let useOperator (name: string) (left: Expression) (right: Expression): Expression =
-        
-        Expression.Equal(left, right)
-
-    let rec buildPredicate (nodeName: string) (nodeValue: ValueNode) (objectType: Type) (propAccess: Expression) =
+    let rec buildPredicate (nodeName: string) (nodeValue: ValueNode) (propAccess: Expression) =
         match nodeValue with 
             | StringValue strValue -> 
-                let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                let access = Expression.Property(propAccess, property)
                 let value = Expression.Constant(strValue)
-                useOperator nodeName access value
+                match nodeName with 
+                | "gte" -> Expression.GreaterThanOrEqual(propAccess, value) :> Expression
+                | _ -> 
+                    let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                    let access = Expression.Property(propAccess, property)
+                    Expression.Equal(access, value) :> Expression
             | IntValue intValue -> 
-                let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                let access = Expression.Property(propAccess, property)
                 let value = Expression.Constant(intValue)
-                Expression.Equal(access, value) :> Expression
-            | BooleanValue boolValue -> 
-                let property = objectType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                let access = Expression.Property(propAccess, property)
-                let value = Expression.Constant(boolValue)
-                Expression.Equal(access, value) :> Expression
+                match nodeName with 
+                | "gte" -> Expression.GreaterThanOrEqual(propAccess, value) :> Expression
+                | _ -> 
+                    let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                    let access = Expression.Property(propAccess, property)
+                    Expression.Equal(access, value) :> Expression
             | ListValue listValue ->
                 listValue
                 |> List.fold 
                     (fun acc listNode -> 
-                        let predicate = buildPredicate String.Empty listNode objectType propAccess
+                        let predicate = buildPredicate String.Empty listNode propAccess
                         match nodeName with
                         | "AND" -> 
                             if isEmpty acc then
@@ -70,16 +67,19 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                         | _ -> acc
                     ) (Expression.Empty() :> Expression)
             | ObjectValue objectValue -> 
+                let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let propAccessChild = if isNull property then propAccess else Expression.Property(propAccess, property)
+
                 objectValue
-                |> List.fold 
-                    (fun acc objectValueNode -> 
-                        let (ovnName, ovnValue) = objectValueNode
-                        let predicate = buildPredicate ovnName ovnValue objectType propAccess
-                        if isEmpty acc then
-                            predicate
-                        else 
-                            Expression.AndAlso(acc, predicate)
-                    ) (Expression.Empty() :> Expression)
+                    |> List.fold 
+                        (fun acc objectValueNode -> 
+                            let (ovnName, ovnValue) = objectValueNode
+                            let predicate = buildPredicate ovnName ovnValue propAccessChild
+                            if isEmpty acc then
+                                predicate
+                            else 
+                                Expression.AndAlso(acc, predicate)
+                        ) (Expression.Empty() :> Expression)
             | _ -> propAccess
 
     let processFilter (filterValue: ValueNode) (expression: Expression): Expression = 
@@ -99,7 +99,7 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
         let whereMethod = whereMethod.MakeGenericMethod(objectType)
 
-        let predicate = buildPredicate String.Empty filterValue objectType parameter
+        let predicate = buildPredicate String.Empty filterValue parameter
             
         let lambda = Expression.Lambda(predicate, parameter)
         Expression.Call(whereMethod, expression, lambda)
