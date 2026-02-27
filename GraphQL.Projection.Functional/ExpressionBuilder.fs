@@ -32,6 +32,8 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
     let isCollectionOperator (op: string): bool = op = "none" || op = "every" || op = "some"
 
+    let isListPrimitive (op: string): bool = op = "in" || op = "nin"
+
     let processPrimitive (nodeName: string) (nodeValue: obj) (propAccess: Expression) =
         let value = Expression.Constant(nodeValue)
         match nodeName with 
@@ -49,7 +51,23 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                     m.Name.Equals(collectionOp, StringComparison.OrdinalIgnoreCase) && 
                     m.GetParameters().Length = 1 && m.GetParameters() |> Array.forall (fun p -> p.ParameterType = typeof<string>))
             Expression.Call(propAccess, containsMethod, value)
-        //| "in" -> Expression.Empty() :> Expression
+        | "in" -> 
+            let valueType =  nodeValue.GetType()
+            let collectionType = 
+                defaultInspector.getCollectionType valueType
+                |> Option.get
+
+            let elementType = 
+                defaultInspector.getElementType valueType
+                |> Option.get
+            
+            let containsMethod = 
+                collectionType.GetMethods()
+                |> Array.find (fun m -> m.Name = "Contains" && m.GetParameters().Length = 2)
+            
+            let containsMethod = containsMethod.MakeGenericMethod(elementType)
+
+            Expression.Call(containsMethod, Expression.Constant(nodeValue), propAccess)
         //| "nin" -> Expression.Empty() :> Expression
         | _ -> 
             let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
@@ -65,23 +83,26 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
             | NullValue -> processPrimitive nodeName null propAccess
             //| Variable variable -> processPrimitive nodeName enumValue propAccess
             | ListValue listValue ->
-                listValue
-                |> List.fold 
-                    (fun acc listNode -> 
-                        let predicate = buildPredicate String.Empty listNode propAccess
-                        match nodeName with
-                        | "AND" -> 
-                            if isEmpty acc then
-                                predicate
-                            else 
-                                Expression.AndAlso(acc, predicate)
-                        | "OR" -> 
-                            if isEmpty acc then
-                                predicate
-                            else 
-                                Expression.OrElse(acc, predicate)
-                        | _ -> acc
-                    ) (Expression.Empty() :> Expression)
+                if isListPrimitive nodeName then
+                    processPrimitive nodeName listValue propAccess
+                else
+                    listValue
+                    |> List.fold 
+                        (fun acc listNode -> 
+                            let predicate = buildPredicate String.Empty listNode propAccess
+                            match nodeName with
+                            | "AND" -> 
+                                if isEmpty acc then
+                                    predicate
+                                else 
+                                    Expression.AndAlso(acc, predicate)
+                            | "OR" -> 
+                                if isEmpty acc then
+                                    predicate
+                                else 
+                                    Expression.OrElse(acc, predicate)
+                            | _ -> acc
+                        ) (Expression.Empty() :> Expression)
             | ObjectValue objectValue ->                   
                 let propType = 
                     if defaultInspector.isCollection propAccess.Type then

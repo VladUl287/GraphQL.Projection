@@ -18,8 +18,15 @@ var userQuery =
                 //new Tuple<string, ValueNode>("active", ValueNode.NewBooleanValue(true)),
                 //new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test"))
 
+                //new Tuple<string, ValueNode>("name", ValueNode.NewObjectValue([
+                //    new Tuple<string, ValueNode>("endsWith",  ValueNode.NewStringValue("test"))
+                //]))
+
                 new Tuple<string, ValueNode>("name", ValueNode.NewObjectValue([
-                    new Tuple<string, ValueNode>("endsWith",  ValueNode.NewStringValue("test"))
+                    new Tuple<string, ValueNode>("in", ValueNode.NewListValue([
+                         ValueNode.NewStringValue("test"),
+                         ValueNode.NewStringValue("test2")
+                    ]))
                 ]))
                 
                 //new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
