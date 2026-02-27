@@ -44,7 +44,7 @@ public class ExternalRole : Role
 public class Product
 {
     public Guid Id { get; init; }
-    public string Number { get; init; }
+    public int Number { get; init; }
     public string Name { get; init; }
     public DateTime CreatedAt { get; init; }
 

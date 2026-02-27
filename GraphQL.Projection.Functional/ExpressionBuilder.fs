@@ -75,20 +75,56 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                                 Expression.OrElse(acc, predicate)
                         | _ -> acc
                     ) (Expression.Empty() :> Expression)
-            | ObjectValue objectValue -> 
-                let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
-                let propAccessChild = if isNull property then propAccess else Expression.Property(propAccess, property)
+            | ObjectValue objectValue ->                   
+                let propType = 
+                    if defaultInspector.isCollection propAccess.Type then
+                        defaultInspector.getElementType propAccess.Type 
+                    else Some propAccess.Type
+                    |> Option.get
 
-                objectValue
+                let property = propType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
+                let propAccessChild = if isNull property then propAccess else Expression.Property(propAccess, property)                    
+
+                let propeprtyParam = 
+                    if defaultInspector.isCollection propAccessChild.Type then
+                        let element = 
+                            defaultInspector.getElementType propAccessChild.Type 
+                            |> Option.get
+                        Expression.Parameter(element) :> Expression
+                    else propAccessChild
+
+                let childPredicate = 
+                    objectValue
                     |> List.fold 
                         (fun acc objectValueNode -> 
                             let (ovnName, ovnValue) = objectValueNode
-                            let predicate = buildPredicate ovnName ovnValue propAccessChild
+                            let predicate = buildPredicate ovnName ovnValue propeprtyParam
                             if isEmpty acc then
                                 predicate
                             else 
                                 Expression.AndAlso(acc, predicate)
                         ) (Expression.Empty() :> Expression)
+
+                if defaultInspector.isCollection propAccessChild.Type then
+                    let collectionType = defaultInspector.getCollectionType propAccessChild.Type
+                    match nodeName with
+                    //| "every" -> result
+                    | "some" -> childPredicate
+                    | "none" -> childPredicate
+                    | _ -> 
+                        let allMethod = 
+                           collectionType.Value.GetMethods()
+                           |> Array.find (fun m -> 
+                               m.Name = "All" && 
+                               m.GetParameters().Length = 2)
+                        let prodType = 
+                            defaultInspector.getElementType propAccessChild.Type 
+                            |> Option.get
+                        let allMethod = allMethod.MakeGenericMethod(prodType)
+                        let lambda = Expression.Lambda(childPredicate, propeprtyParam :?> ParameterExpression)
+                        Expression.Call(allMethod, propAccessChild, lambda)
+                else 
+                    childPredicate
             | _ -> propAccess
 
     let processFilter (filterValue: ValueNode) (expression: Expression): Expression = 

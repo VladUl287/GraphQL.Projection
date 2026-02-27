@@ -7,20 +7,28 @@ using GraphQL.Projection;
 var userQuery =
     Operations.field("user", [
             new ArgumentNode("filter", ValueNode.NewObjectValue([
+                new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+                    new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+                ])),
                 //new Tuple<string, ValueNode>("active", ValueNode.NewBooleanValue(true)),
                 //new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test"))
-                new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
-                    ValueNode.NewObjectValue([
-                        //new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
-                        new Tuple<string, ValueNode>("id",  ValueNode.NewObjectValue([
-                            new Tuple<string, ValueNode>("gte", ValueNode.NewIntValue(5)),
-                            //new Tuple<string, ValueNode>("lte", ValueNode.NewIntValue(10)),
-                        ])),
-                    ]),
-                    ValueNode.NewObjectValue([
-                        new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),
-                    ]),
-                ]))
+                //new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
+                //    ValueNode.NewObjectValue([
+                //        //new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
+                //        new Tuple<string, ValueNode>("id",  ValueNode.NewObjectValue([
+                //            new Tuple<string, ValueNode>("gte", ValueNode.NewIntValue(5)),
+                //            //new Tuple<string, ValueNode>("lte", ValueNode.NewIntValue(10)),
+                //        ])),
+                //    ]),
+                //    //ValueNode.NewObjectValue([
+                //    //    new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),
+                //    //]),
+                //    ValueNode.NewObjectValue([
+                //        new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+                //             new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+                //        ])),
+                //    ]),
+                //]))
             ]))
         ], default, [], [
         Operations.field("id", [], default,
