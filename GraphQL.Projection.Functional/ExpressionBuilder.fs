@@ -41,9 +41,14 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
         | "gte" -> Expression.GreaterThanOrEqual(propAccess, value) :> Expression
         | "lt" -> Expression.LessThan(propAccess, value) :> Expression
         | "lte" -> Expression.LessThanOrEqual(propAccess, value) :> Expression
-        //| "contains" -> Expression.Empty() :> Expression
-        //| "startsWith" -> Expression.Empty() :> Expression
-        //| "endsWith" -> Expression.Empty() :> Expression
+        | "contains" | "startsWith" | "endsWith" as collectionOp -> 
+            let propType = propAccess.Type
+            let containsMethod = 
+                propType.GetMethods()
+                |> Array.find (fun m -> 
+                    m.Name.Equals(collectionOp, StringComparison.OrdinalIgnoreCase) && 
+                    m.GetParameters().Length = 1 && m.GetParameters() |> Array.forall (fun p -> p.ParameterType = typeof<string>))
+            Expression.Call(propAccess, containsMethod, value)
         //| "in" -> Expression.Empty() :> Expression
         //| "nin" -> Expression.Empty() :> Expression
         | _ -> 
