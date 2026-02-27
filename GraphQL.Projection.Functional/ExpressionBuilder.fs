@@ -30,6 +30,8 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
     let isEmpty (expr: Expression): bool = (expr = null || expr :? DefaultExpression)
 
+    let isCollectionOperator (op: string): bool = op = "none" || op = "every" || op = "some"
+
     let processPrimitive (nodeName: string) (nodeValue: obj) (propAccess: Expression) =
         let value = Expression.Constant(nodeValue)
         match nodeName with 
@@ -86,7 +88,7 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                 let propAccessChild = if isNull property then propAccess else Expression.Property(propAccess, property)                    
 
                 let propeprtyParam = 
-                    if defaultInspector.isCollection propAccessChild.Type then
+                    if defaultInspector.isCollection propAccessChild.Type && isCollectionOperator nodeName then
                         let element = 
                             defaultInspector.getElementType propAccessChild.Type 
                             |> Option.get
@@ -105,25 +107,50 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                                 Expression.AndAlso(acc, predicate)
                         ) (Expression.Empty() :> Expression)
 
-                if defaultInspector.isCollection propAccessChild.Type then
+                match nodeName with
+                | "some" -> 
                     let collectionType = defaultInspector.getCollectionType propAccessChild.Type
-                    match nodeName with
-                    //| "every" -> result
-                    | "some" -> childPredicate
-                    | "none" -> childPredicate
-                    | _ -> 
-                        let allMethod = 
-                           collectionType.Value.GetMethods()
-                           |> Array.find (fun m -> 
-                               m.Name = "All" && 
-                               m.GetParameters().Length = 2)
-                        let prodType = 
-                            defaultInspector.getElementType propAccessChild.Type 
-                            |> Option.get
-                        let allMethod = allMethod.MakeGenericMethod(prodType)
-                        let lambda = Expression.Lambda(childPredicate, propeprtyParam :?> ParameterExpression)
-                        Expression.Call(allMethod, propAccessChild, lambda)
-                else 
+                    let allMethod = 
+                       collectionType.Value.GetMethods()
+                       |> Array.find (fun m -> 
+                           m.Name = "Any" && 
+                           m.GetParameters().Length = 2)
+                    let prodType = 
+                        defaultInspector.getElementType propAccessChild.Type 
+                        |> Option.get
+                    let allMethod = allMethod.MakeGenericMethod(prodType)
+                    let lambda = Expression.Lambda(childPredicate, propeprtyParam :?> ParameterExpression)
+                    Expression.Call(allMethod, propAccessChild, lambda)
+
+                | "every" -> 
+                    let collectionType = defaultInspector.getCollectionType propAccessChild.Type
+                    let allMethod = 
+                       collectionType.Value.GetMethods()
+                       |> Array.find (fun m -> 
+                           m.Name = "All" && 
+                           m.GetParameters().Length = 2)
+                    let prodType = 
+                        defaultInspector.getElementType propAccessChild.Type 
+                        |> Option.get
+                    let allMethod = allMethod.MakeGenericMethod(prodType)
+                    let lambda = Expression.Lambda(childPredicate, propeprtyParam :?> ParameterExpression)
+                    Expression.Call(allMethod, propAccessChild, lambda)
+
+                | "none" -> 
+                    let collectionType = defaultInspector.getCollectionType propAccessChild.Type
+                    let allMethod = 
+                       collectionType.Value.GetMethods()
+                       |> Array.find (fun m -> 
+                           m.Name = "Any" && 
+                           m.GetParameters().Length = 2)
+                    let prodType = 
+                        defaultInspector.getElementType propAccessChild.Type 
+                        |> Option.get
+                    let allMethod = allMethod.MakeGenericMethod(prodType)
+                    let lambda = Expression.Lambda(childPredicate, propeprtyParam :?> ParameterExpression)
+                    let call = Expression.Call(allMethod, propAccessChild, lambda)
+                    Expression.Not(call)
+                | _ -> 
                     childPredicate
             | _ -> propAccess
 
