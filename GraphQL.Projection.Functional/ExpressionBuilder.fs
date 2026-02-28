@@ -235,6 +235,37 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
         let lambda = Expression.Lambda(predicate, parameter)
         Expression.Call(whereMethod, expression, lambda)
 
+    let rec processSort (sortValue: ValueNode) (expression: Expression): Expression = 
+        match sortValue with
+        | ObjectValue objectValue -> 
+            objectValue 
+            |> List.fold
+                (fun acc value ->
+                    let (field, order) = value
+
+                    let collectionType = 
+                        defaultInspector.getCollectionType expression.Type 
+                        |> Option.defaultValue expression.Type
+
+                    let valueType = 
+                        defaultInspector.getElementType collectionType
+                        |> Option.defaultValue collectionType
+
+                    let property = valueType.GetProperty(field, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
+                    let access = Expression.Property(expression, property)
+                    match order.ToString() with
+                    | "ASC" -> 
+
+                        acc
+                    | "DESC" -> 
+                        acc
+                    | _ -> 
+                        acc
+                ) expression
+            //let (field, order) = v
+            //expression
+        | _ -> expression
+
     args
     |> List.fold 
         (fun acc arg -> 
@@ -242,6 +273,9 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
             if name = "filter" then
                 let value = arg.value
                 processFilter value acc
+            elif name = "sort" then
+                let value = arg.value
+                processSort value acc
             else
                 acc
         ) expression
