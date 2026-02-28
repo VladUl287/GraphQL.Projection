@@ -23,7 +23,7 @@ var userQuery =
                 //]))
 
                 new Tuple<string, ValueNode>("name", ValueNode.NewObjectValue([
-                    new Tuple<string, ValueNode>("in", ValueNode.NewListValue([
+                    new Tuple<string, ValueNode>("nin", ValueNode.NewListValue([
                          ValueNode.NewStringValue("test"),
                          ValueNode.NewStringValue("test2")
                     ]))

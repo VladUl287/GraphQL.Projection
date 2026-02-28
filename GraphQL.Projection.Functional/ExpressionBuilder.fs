@@ -34,6 +34,16 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
     let isListPrimitive (op: string): bool = op = "in" || op = "nin"
 
+    let extractToConcrete (nodes: ValueNode list): obj list =
+        nodes 
+            |> List.map (function 
+                | IntValue v -> v
+                | StringValue v -> v
+                | BooleanValue v -> v
+                | EnumValue v -> v
+                | _ -> null
+            )
+
     let processPrimitive (nodeName: string) (nodeValue: obj) (propAccess: Expression) =
         let value = Expression.Constant(nodeValue)
         match nodeName with 
@@ -52,13 +62,16 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                     m.GetParameters().Length = 1 && m.GetParameters() |> Array.forall (fun p -> p.ParameterType = typeof<string>))
             Expression.Call(propAccess, containsMethod, value)
         | "in" -> 
-            let valueType =  nodeValue.GetType()
+            let list = nodeValue :?> ValueNode list
+            let mappedList = extractToConcrete list
+            let mappedListType = mappedList.GetType()
+
             let collectionType = 
-                defaultInspector.getCollectionType valueType
+                defaultInspector.getCollectionType mappedListType
                 |> Option.get
 
             let elementType = 
-                defaultInspector.getElementType valueType
+                defaultInspector.getElementType mappedListType
                 |> Option.get
             
             let containsMethod = 
@@ -67,8 +80,28 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
             
             let containsMethod = containsMethod.MakeGenericMethod(elementType)
 
-            Expression.Call(containsMethod, Expression.Constant(nodeValue), propAccess)
-        //| "nin" -> Expression.Empty() :> Expression
+            Expression.Call(containsMethod, Expression.Constant(mappedList), Expression.Convert(propAccess, typeof<obj>))
+        | "nin" ->
+            let list = nodeValue :?> ValueNode list
+            let mappedList = extractToConcrete list
+            let mappedListType = mappedList.GetType()
+            
+            let collectionType = 
+                defaultInspector.getCollectionType mappedListType
+                |> Option.get
+            
+            let elementType = 
+                defaultInspector.getElementType mappedListType
+                |> Option.get
+            
+            let containsMethod = 
+                collectionType.GetMethods()
+                |> Array.find (fun m -> m.Name = "Contains" && m.GetParameters().Length = 2)
+            
+            let containsMethod = containsMethod.MakeGenericMethod(elementType)
+            
+            let call = Expression.Call(containsMethod, Expression.Constant(mappedList), Expression.Convert(propAccess, typeof<obj>))
+            Expression.Not(call)
         | _ -> 
             let property = propAccess.Type.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
             let access = Expression.Property(propAccess, property)
