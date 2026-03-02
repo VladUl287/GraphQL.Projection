@@ -235,7 +235,7 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
         let lambda = Expression.Lambda(predicate, parameter)
         Expression.Call(whereMethod, expression, lambda)
 
-    let rec processSort (sortValue: ValueNode) (expression: Expression): Expression = 
+    let rec processSort (sortValue: ValueNode) (collectionExpression: Expression): Expression = 
         match sortValue with
         | ObjectValue objectValue -> 
             objectValue 
@@ -244,27 +244,54 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                     let (field, order) = value
 
                     let collectionType = 
-                        defaultInspector.getCollectionType expression.Type 
-                        |> Option.defaultValue expression.Type
+                        defaultInspector.getCollectionType collectionExpression.Type 
+                        |> Option.defaultValue collectionExpression.Type
 
                     let valueType = 
-                        defaultInspector.getElementType collectionType
+                        defaultInspector.getElementType collectionExpression.Type 
                         |> Option.defaultValue collectionType
 
-                    let property = valueType.GetProperty(field, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
-                    let access = Expression.Property(expression, property)
-                    match order.ToString() with
-                    | "ASC" -> 
+                    let rec buildOrderByLambdaBody (nodeValue: ValueNode) (accessParam: Expression): (Expression * string) option =
+                        match nodeValue with
+                        | EnumValue orderValue -> Some (accessParam, orderValue)
+                        | ObjectValue _ -> 
+                            let property = accessParam.Type.GetProperty(field, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
+                            let subAccess = Expression.Property(accessParam, property)
+                            buildOrderByLambdaBody nodeValue subAccess
+                        | _ -> 
+                            None
 
-                        acc
-                    | "DESC" -> 
-                        acc
-                    | _ -> 
-                        acc
-                ) expression
-            //let (field, order) = v
-            //expression
-        | _ -> expression
+                    let paramAccess = Expression.Parameter(valueType)
+                    let property = paramAccess.Type.GetProperty(field, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
+                    let subAccess = Expression.Property(paramAccess, property)
+                    let bodyWithOrder = buildOrderByLambdaBody order subAccess
+
+                    if Option.isNone bodyWithOrder then expression
+                    else
+                        let (bodyValue, order) = bodyWithOrder |> Option.get
+                        let lambda = Expression.Lambda(bodyValue, paramAccess)
+                        match order with 
+                        | "ASC" -> 
+                            let orderByMethod = 
+                                collectionType.GetMethods()
+                                |> Array.find (fun m -> 
+                                    m.Name = "OrderBy" && 
+                                    m.GetParameters().Length = 2)
+
+                            let orderBy = orderByMethod.MakeGenericMethod(valueType, bodyValue.Type)
+                            Expression.Call(orderBy, expression, lambda)
+                        | "DESC" -> 
+                            let orderByMethod = 
+                                collectionType.GetMethods()
+                                |> Array.find (fun m -> 
+                                    m.Name = "OrderByDescending" && 
+                                    m.GetParameters().Length = 2)
+                            
+                            let orderBy = orderByMethod.MakeGenericMethod(valueType, bodyValue.Type)
+                            Expression.Call(orderBy, expression, lambda)
+                        | _ -> expression
+                ) collectionExpression
+        | _ -> collectionExpression
 
     args
     |> List.fold 

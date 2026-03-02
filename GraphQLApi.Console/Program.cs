@@ -46,6 +46,14 @@ var userQuery =
                 //        ])),
                 //    ]),
                 //]))
+            ])),
+            new ArgumentNode("sort", ValueNode.NewObjectValue([
+                new Tuple<string, ValueNode>("createdAt", ValueNode.NewEnumValue("ASC"))
+                //new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+                //    new Tuple<string, ValueNode>("none", ValueNode.NewObjectValue([
+                //        new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+                //    ])),
+                //])),
             ]))
         ], default, [], [
         Operations.field("id", [], default,
@@ -123,6 +131,7 @@ var userQuery =
 
 var query = new AppDatabaseContext()
     .Users
+    .OrderBy(us => us.Active)
     .ProjectTo(userQuery)
     ;
 
