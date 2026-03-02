@@ -140,7 +140,6 @@ var userQuery =
 
 var query = new AppDatabaseContext()
     .Users
-    .OrderBy(us => us.Active)
     .ProjectTo(userQuery)
     ;
 

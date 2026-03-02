@@ -266,7 +266,7 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                     let subAccess = Expression.Property(paramAccess, property)
                     let bodyWithOrder = buildOrderByLambdaBody order subAccess
 
-                    if Option.isNone bodyWithOrder then expression
+                    if Option.isNone bodyWithOrder then collectionExpression
                     else
                         let (bodyValue, order) = bodyWithOrder |> Option.get
                         let lambda = Expression.Lambda(bodyValue, paramAccess)
@@ -279,7 +279,7 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                                     m.GetParameters().Length = 2)
 
                             let orderBy = orderByMethod.MakeGenericMethod(valueType, bodyValue.Type)
-                            Expression.Call(orderBy, expression, lambda)
+                            Expression.Call(orderBy, acc, lambda)
                         | "DESC" -> 
                             let orderByMethod = 
                                 collectionType.GetMethods()
@@ -288,7 +288,7 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                                     m.GetParameters().Length = 2)
                             
                             let orderBy = orderByMethod.MakeGenericMethod(valueType, bodyValue.Type)
-                            Expression.Call(orderBy, expression, lambda)
+                            Expression.Call(orderBy, acc, lambda)
                         | _ -> expression
                 ) collectionExpression
         | _ -> collectionExpression
@@ -327,8 +327,8 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                             let takeMethod = takeMethod.MakeGenericMethod(valueType)
                             Expression.Call(takeMethod, acc, Expression.Constant(v))
                         | _ -> acc
-                    ) expression
-            | _ -> expression
+                    ) collectionExpression
+            | _ -> collectionExpression
 
     args
     |> List.fold 
