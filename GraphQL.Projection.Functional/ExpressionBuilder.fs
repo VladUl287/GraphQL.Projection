@@ -293,6 +293,43 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                 ) collectionExpression
         | _ -> collectionExpression
 
+    let processPagination (paginationValue: ValueNode) (collectionExpression: Expression): Expression =
+         let collectionType = 
+             defaultInspector.getCollectionType collectionExpression.Type 
+             |> Option.defaultValue collectionExpression.Type
+        
+         let valueType = 
+             defaultInspector.getElementType collectionExpression.Type 
+             |> Option.defaultValue collectionType
+
+         match paginationValue with
+            | ObjectValue objectValue -> 
+                objectValue 
+                |> List.fold
+                    (fun acc value -> 
+                        match value with 
+                        | ("LIMIT", IntValue v) -> 
+                            let takeMethod = 
+                                collectionType.GetMethods()
+                                |> Array.find (fun m -> 
+                                    m.Name = "Take" && 
+                                    m.GetParameters().Length = 2)
+                            
+                            let takeMethod = takeMethod.MakeGenericMethod(valueType)
+                            Expression.Call(takeMethod, acc, Expression.Constant(v))
+                        | ("OFFSET", IntValue v) -> 
+                            let takeMethod = 
+                                collectionType.GetMethods()
+                                |> Array.find (fun m -> 
+                                    m.Name = "Skip" && 
+                                    m.GetParameters().Length = 2)
+                            
+                            let takeMethod = takeMethod.MakeGenericMethod(valueType)
+                            Expression.Call(takeMethod, acc, Expression.Constant(v))
+                        | _ -> acc
+                    ) expression
+            | _ -> expression
+
     args
     |> List.fold 
         (fun acc arg -> 
@@ -303,6 +340,9 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
             elif name = "sort" then
                 let value = arg.value
                 processSort value acc
+            elif name = "pagination" then
+                let value = arg.value
+                processPagination value acc
             else
                 acc
         ) expression

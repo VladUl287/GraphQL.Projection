@@ -54,6 +54,15 @@ var userQuery =
                 //        new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
                 //    ])),
                 //])),
+            ])),
+            new ArgumentNode("pagination", ValueNode.NewObjectValue([
+                new Tuple<string, ValueNode>("OFFSET", ValueNode.NewIntValue(20)),
+                new Tuple<string, ValueNode>("LIMIT", ValueNode.NewIntValue(20))
+                //new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+                //    new Tuple<string, ValueNode>("none", ValueNode.NewObjectValue([
+                //        new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+                //    ])),
+                //])),
             ]))
         ], default, [], [
         Operations.field("id", [], default,
