@@ -6,13 +6,16 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="TypeSystem.fs" />
     <Compile Include="Utils\Result.fs" />
     <Compile Include="AnonymousTypeBuilder.fs" />
-    <Compile Include="TypeSystem.fs" />
     <Compile Include="GraphQLSystem.fs" />
     <Compile Include="GraphQLOp.fs" />
     <Compile Include="ExpressionBuilder.fs" />
     <Compile Include="Projection.fs" />
+    <Compile Include="Arguments\PaginationBuilder.fs" />
+    <Compile Include="Arguments\SortBuilder.fs" />
+    <Compile Include="Arguments\FilterBuilder.fs" />
   </ItemGroup>
 
 </Project>

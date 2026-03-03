@@ -26,6 +26,12 @@ type Builder<'a> = Func<IQueryable<'a>, IQueryable<obj>>
 let createExpressionBuilder (ctx: BuilderContext) (processors: Processors) =
     null
 
+let handlers = 
+    dict [
+        "filter", 1
+        "sort",   1
+    ]
+
 let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
     let isEmpty (expr: Expression): bool = (expr = null || expr :? DefaultExpression)
@@ -140,9 +146,9 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
                 let propType = 
                     if defaultInspector.isCollection propAccess.Type then
                         defaultInspector.getElementType propAccess.Type 
-                    else Some propAccess.Type
-                    |> Option.get
-
+                        |> Option.defaultValue propAccess.Type
+                    else propAccess.Type
+                    
                 let property = propType.GetProperty(nodeName, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance)
                 let propAccessChild = if isNull property then propAccess else Expression.Property(propAccess, property)                    
 
