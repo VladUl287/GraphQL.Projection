@@ -22,48 +22,48 @@ var userQuery =
                 //    new Tuple<string, ValueNode>("endsWith",  ValueNode.NewStringValue("test"))
                 //]))
 
-                new Tuple<string, ValueNode>("name", ValueNode.NewObjectValue([
-                    new Tuple<string, ValueNode>("nin", ValueNode.NewListValue([
-                         ValueNode.NewStringValue("test"),
-                         ValueNode.NewStringValue("test2")
-                    ]))
-                ]))
-                
-                //new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
-                //    ValueNode.NewObjectValue([
-                //        //new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
-                //        new Tuple<string, ValueNode>("id",  ValueNode.NewObjectValue([
-                //            new Tuple<string, ValueNode>("gte", ValueNode.NewIntValue(5)),
-                //            //new Tuple<string, ValueNode>("lte", ValueNode.NewIntValue(10)),
-                //        ])),
-                //    ]),
-                //    //ValueNode.NewObjectValue([
-                //    //    new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),
-                //    //]),
-                //    ValueNode.NewObjectValue([
-                //        new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
-                //             new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
-                //        ])),
-                //    ]),
+                //new Tuple<string, ValueNode>("name", ValueNode.NewObjectValue([
+                //    new Tuple<string, ValueNode>("nin", ValueNode.NewListValue([
+                //         ValueNode.NewStringValue("test"),
+                //         ValueNode.NewStringValue("test2")
+                //    ]))
                 //]))
+                
+                new Tuple<string, ValueNode>("OR", ValueNode.NewListValue([
+                    ValueNode.NewObjectValue([
+                        //new Tuple<string, ValueNode>("id", ValueNode.NewIntValue(1)),
+                        new Tuple<string, ValueNode>("id",  ValueNode.NewObjectValue([
+                            new Tuple<string, ValueNode>("gte", ValueNode.NewIntValue(5)),
+                            //new Tuple<string, ValueNode>("lte", ValueNode.NewIntValue(10)),
+                        ])),
+                    ]),
+                    //ValueNode.NewObjectValue([
+                    //    new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),
+                    //]),
+                    ValueNode.NewObjectValue([
+                        new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+                             new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+                        ])),
+                    ]),
+                ]))
             ])),
-            new ArgumentNode("sort", ValueNode.NewObjectValue([
-                new Tuple<string, ValueNode>("createdAt", ValueNode.NewEnumValue("ASC"))
-                //new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
-                //    new Tuple<string, ValueNode>("none", ValueNode.NewObjectValue([
-                //        new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
-                //    ])),
-                //])),
-            ])),
-            new ArgumentNode("pagination", ValueNode.NewObjectValue([
-                new Tuple<string, ValueNode>("OFFSET", ValueNode.NewIntValue(20)),
-                new Tuple<string, ValueNode>("LIMIT", ValueNode.NewIntValue(20))
-                //new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
-                //    new Tuple<string, ValueNode>("none", ValueNode.NewObjectValue([
-                //        new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
-                //    ])),
-                //])),
-            ]))
+            //new ArgumentNode("sort", ValueNode.NewObjectValue([
+            //    new Tuple<string, ValueNode>("createdAt", ValueNode.NewEnumValue("ASC"))
+            //    //new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+            //    //    new Tuple<string, ValueNode>("none", ValueNode.NewObjectValue([
+            //    //        new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+            //    //    ])),
+            //    //])),
+            //])),
+            //new ArgumentNode("pagination", ValueNode.NewObjectValue([
+            //    new Tuple<string, ValueNode>("OFFSET", ValueNode.NewIntValue(20)),
+            //    new Tuple<string, ValueNode>("LIMIT", ValueNode.NewIntValue(20))
+            //    //new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+            //    //    new Tuple<string, ValueNode>("none", ValueNode.NewObjectValue([
+            //    //        new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+            //    //    ])),
+            //    //])),
+            //]))
         ], default, [], [
         Operations.field("id", [], default,
         //[
