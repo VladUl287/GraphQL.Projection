@@ -37,14 +37,14 @@ var userQuery =
                             //new Tuple<string, ValueNode>("lte", ValueNode.NewIntValue(10)),
                         ])),
                     ]),
-                    //ValueNode.NewObjectValue([
-                    //    new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),
-                    //]),
                     ValueNode.NewObjectValue([
-                        new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
-                             new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
-                        ])),
+                        new Tuple<string, ValueNode>("name", ValueNode.NewStringValue("test")),
                     ]),
+                    //ValueNode.NewObjectValue([
+                    //    new Tuple<string, ValueNode>("products", ValueNode.NewObjectValue([
+                    //         new Tuple<string, ValueNode>("number", ValueNode.NewIntValue(12))
+                    //    ])),
+                    //]),
                 ]))
             ])),
             //new ArgumentNode("sort", ValueNode.NewObjectValue([

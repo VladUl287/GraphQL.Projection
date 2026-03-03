@@ -236,8 +236,10 @@ let processArgs (args: ArgumentNode list) (expression: Expression): Expression =
 
         let whereMethod = whereMethod.MakeGenericMethod(objectType)
 
-        let predicate = buildPredicate String.Empty filterValue parameter
-            
+        let predicate = FilterBuilder.build defaultInspector parameter ("ROOT", filterValue)
+
+        //let predicate = buildPredicate String.Empty filterValue parameter
+        
         let lambda = Expression.Lambda(predicate, parameter)
         Expression.Call(whereMethod, expression, lambda)
 
