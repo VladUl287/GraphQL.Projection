@@ -23,11 +23,13 @@ let rec build (inspector: TypeInspector) (param: Expression) (node: (string * Va
             | _ -> failwith "Unexpected node type"
         buildPrimitiveOp param (op, value)
 
+    | (op, ObjectValue obj) when isCollectionOperatorObject op -> param
+
     | (("AND" | "OR") as op, ListValue lst) -> 
         lst 
         |> List.fold
             (fun acc item ->
-                let predicate = build inspector param ("ROOT", item)
+                let predicate = build inspector param (String.Empty, item)
                 match op with 
                 | "AND" -> 
                     if isEmpty acc then predicate else Expression.AndAlso(acc, predicate)
@@ -35,12 +37,12 @@ let rec build (inspector: TypeInspector) (param: Expression) (node: (string * Va
                     if isEmpty acc then predicate else Expression.OrElse(acc, predicate)
                 | _ -> acc
             ) (Expression.Empty())
-    
-    | (("SOME" | "EVERY" | "NONE"), ObjectValue obj) -> param
 
-    | ("ROOT", ObjectValue obj) -> 
+    | (property, ObjectValue obj) -> 
+        let propertyInfo = param.Type.GetProperty(property, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
+        let propertyAccess = if isNull propertyInfo then param else Expression.Property(param, propertyInfo)
         obj
-        |> List.map (build inspector param)
+        |> List.map (build inspector propertyAccess)
         |> List.fold 
             (fun acc expr -> 
                 if acc :? DefaultExpression then expr
@@ -60,17 +62,6 @@ let rec build (inspector: TypeInspector) (param: Expression) (node: (string * Va
             | _ -> failwith "Unexpected node type"
         buildPrimitiveOp propertyAccess ("eq", value)
 
-    | (property, ObjectValue obj) -> 
-        let propertyInfo = param.Type.GetProperty(property, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
-        let propertyAccess = Expression.Property(param, propertyInfo)
-        obj
-        |> List.map (build inspector propertyAccess)
-        |> List.fold 
-            (fun acc expr -> 
-                if acc :? DefaultExpression then expr
-                else Expression.AndAlso(acc, expr)
-            ) (Expression.Empty())
-
     | _ -> param
 
 and private isPrimitiveOp (key: string): bool =
@@ -79,6 +70,8 @@ and private isPrimitiveOp (key: string): bool =
         | "contains" | "startsWith" | "endsWith" 
         | "in" | "nin" -> true
         | _ -> false
+
+and private isCollectionOperatorObject (key: string): bool = key = "SOME" || key = "EVERY" || key = "NONE"
 
 and private buildPrimitiveOp (propAccess: Expression) ((op, value): string * objnull): Expression =
     let exprValue = Expression.Constant(value)
