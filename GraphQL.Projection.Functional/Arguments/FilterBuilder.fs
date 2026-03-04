@@ -47,10 +47,18 @@ let rec build (inspector: TypeInspector) (param: Expression) (node: (string * Va
                 else Expression.AndAlso(acc, expr)
             ) (Expression.Empty())
 
-    | (property, StringValue v) -> 
+    | (property, ((StringValue _ | EnumValue _ | IntValue _ | BooleanValue _ | NullValue) as primitiveNode)) -> 
         let propertyInfo = param.Type.GetProperty(property, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
         let propertyAccess = Expression.Property(param, propertyInfo)
-        buildPrimitiveOp propertyAccess ("eq", v)
+        let value = 
+            match primitiveNode with
+            | StringValue s -> box s
+            | IntValue i -> box i
+            | BooleanValue b -> box b
+            | EnumValue e -> box e
+            | NullValue -> null
+            | _ -> failwith "Unexpected node type"
+        buildPrimitiveOp propertyAccess ("eq", value)
 
     | (property, ObjectValue obj) -> 
         let propertyInfo = param.Type.GetProperty(property, BindingFlags.IgnoreCase ||| BindingFlags.Public ||| BindingFlags.Instance) 
@@ -62,39 +70,6 @@ let rec build (inspector: TypeInspector) (param: Expression) (node: (string * Va
                 if acc :? DefaultExpression then expr
                 else Expression.AndAlso(acc, expr)
             ) (Expression.Empty())
-
-    //| ObjectValue obj when isPrimitiveOpObject obj -> buildPrimitiveOp propAccess obj
-
-    //| ObjectValue obj -> 
-    //        obj
-    //        |> List.map 
-    //            (fun node -> 
-    //                match node with
-    //                | (("AND" | "OR"), ListValue lstValue) as (op, _) -> 
-    //                    lstValue 
-    //                    |> List.fold
-    //                        (fun acc lstNode ->
-    //                            let childPredicate = build inspector propAccess lstNode
-    //                            match op with 
-    //                                | "AND" -> Expression.AndAlso(acc, childPredicate) :> Expression
-    //                                | "OR" -> Expression.OrElse(acc, childPredicate)
-    //                                | _ -> acc
-    //                        ) propAccess
-    //                | (propName, propValue) -> 
-    //                    let childProp = Expression.Property(propAccess, propName)
-    //                    build inspector childProp propValue
-    //            )
-    //        |> List.fold 
-    //            (fun acc expr -> 
-    //                //if acc :? DefaultExpression then expr
-    //                if isEmpty acc then expr
-    //                else Expression.AndAlso(acc, expr) :> Expression
-    //            ) (Expression.Empty() :> Expression)
-
-    //| ListValue lst -> 
-    //    lst
-    //    |> List.map (build inspector propAccess)
-    //    propAccess
 
     | _ -> param
 
